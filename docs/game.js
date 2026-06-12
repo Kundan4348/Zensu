@@ -1150,6 +1150,11 @@ function resetGame() {
     document.getElementById('win-modal').classList.add('hidden');
     document.getElementById('cpu-thinking').classList.add('hidden');
 
+    // Tell server to reset scored flag for rematch
+    if (gameMode === 'online' && onlineSocket && onlineSocket.readyState === WebSocket.OPEN) {
+        onlineSocket.send(JSON.stringify({ type: 'rematch' }));
+    }
+
     initBoard();
     renderBoard();
     renderCapturedTrays();
