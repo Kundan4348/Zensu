@@ -410,6 +410,14 @@ function updateLeagueProgress() {
         if (nextEl) nextEl.textContent = '★ Max rank!';
         if (fillEl) fillEl.style.width = '100%';
     }
+
+    // Highlight current rank in the ranks list
+    ranks.forEach(r => {
+        const item = document.getElementById('rank-item-' + r.name);
+        if (item) {
+            item.classList.toggle('current-rank', r.name === currentRank.name);
+        }
+    });
 }
 
 async function showLeaderboard() {
@@ -547,6 +555,7 @@ function connectOnline(onMessage, onOpen) {
             }
         } else if (data.type === 'stats_update') {
             if (currentUser) {
+                const oldRank = currentUser.rank;
                 currentUser.points = data.points;
                 currentUser.rank = data.rank;
                 currentUser.wins = data.wins;
@@ -554,8 +563,9 @@ function connectOnline(onMessage, onOpen) {
                 localStorage.setItem('zensu_user', JSON.stringify(currentUser));
                 updateAccountUI();
 
-                if (data.rankUp) {
-                    setTimeout(() => showRankUpModal(data.rankUp), 1500);
+                const promoted = data.rankUp || (data.rank !== oldRank && data.points > 0);
+                if (promoted) {
+                    setTimeout(() => showRankUpModal(data.rank), 2000);
                 }
             }
         } else {
