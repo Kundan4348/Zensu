@@ -425,7 +425,7 @@ function backToMenu() {
 }
 
 // ===== ONLINE MULTIPLAYER =====
-const WS_URL = `ws://${window.location.hostname}:8081`;
+const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
 
 function createRoom() {
     const status = document.getElementById('online-status');

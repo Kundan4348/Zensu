@@ -4,8 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 
-const PORT = 8080;
-const WS_PORT = 8081;
+const PORT = process.env.PORT || 8080;
 const DB_FILE = path.join(__dirname, 'players.json');
 
 // ===== Player Database =====
@@ -126,10 +125,7 @@ httpServer.listen(PORT, () => {
     console.log(`  │           禅数 ZENSU SERVER              │`);
     console.log(`  ├─────────────────────────────────────────┤`);
     console.log(`  │  Game:   http://localhost:${PORT}           │`);
-    console.log(`  │  WS:     ws://localhost:${WS_PORT}            │`);
-    console.log(`  ├─────────────────────────────────────────┤`);
-    console.log(`  │  Share your IP for online play:         │`);
-    console.log(`  │  http://<your-ip>:${PORT}                 │`);
+    console.log(`  │  WS:     same port (upgrade)            │`);
     console.log(`  └─────────────────────────────────────────┘\n`);
 });
 
@@ -143,7 +139,7 @@ function generateCode() {
     return code;
 }
 
-const wss = new WebSocketServer({ port: WS_PORT });
+const wss = new WebSocketServer({ server: httpServer });
 
 wss.on('connection', (ws) => {
     ws.isAlive = true;
