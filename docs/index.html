@@ -123,26 +123,13 @@
                 <span id="mode-text"></span>
             </div>
 
-            <div id="game-info">
-                <div class="player-panel green-panel" id="green-panel">
-                    <div class="player-header">
-                        <div class="player-stone green-stone"></div>
-                        <span class="player-name">先手</span>
-                        <span class="player-english">Green</span>
-                    </div>
-                    <div class="captured-tray" id="green-captured-tray"></div>
-                </div>
-
-                <div class="turn-badge" id="turn-indicator">
-                    <span class="turn-kanji" id="turn-kanji">緑</span>
-                    <span class="turn-text">の番</span>
-                </div>
-
+            <!-- Red player info (flipped for opponent sitting across) -->
+            <div id="red-bar">
                 <div class="player-panel red-panel" id="red-panel">
                     <div class="player-header">
-                        <span class="player-english">Red</span>
-                        <span class="player-name">後手</span>
                         <div class="player-stone red-stone"></div>
+                        <span class="player-name">後手</span>
+                        <span class="player-english">Red</span>
                     </div>
                     <div class="captured-tray" id="red-captured-tray"></div>
                 </div>
@@ -154,14 +141,34 @@
                 <div class="board-reflection"></div>
             </div>
 
-            <div id="move-hint">
-                <p id="hint-text">駒を選んでください</p>
+            <!-- Green player info (normal orientation, bottom) -->
+            <div id="green-bar">
+                <div class="player-panel green-panel" id="green-panel">
+                    <div class="player-header">
+                        <div class="player-stone green-stone"></div>
+                        <span class="player-name">先手</span>
+                        <span class="player-english">Green</span>
+                    </div>
+                    <div class="captured-tray" id="green-captured-tray"></div>
+                </div>
+            </div>
+
+            <div id="turn-indicator-row">
+                <div class="turn-badge" id="turn-indicator">
+                    <span class="turn-kanji" id="turn-kanji">緑</span>
+                    <span class="turn-text">の番</span>
+                </div>
+                <p id="hint-text"></p>
             </div>
 
             <div id="controls">
                 <button id="menu-btn" onclick="backToMenu()">
                     <span>戻る</span>
                     <small>Menu</small>
+                </button>
+                <button id="undo-btn" onclick="undoMove()">
+                    <span>待った</span>
+                    <small>Undo</small>
                 </button>
                 <button id="new-game-btn" onclick="resetGame()">
                     <span>新局</span>

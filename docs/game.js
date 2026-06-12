@@ -14,6 +14,7 @@ let validMoves = [];
 let greenCapturedPieces = [];
 let redCapturedPieces = [];
 let gameOver = false;
+let moveHistory = []; // For undo
 
 // Mode state
 let gameMode = 'pvp'; // 'pvp', 'cpu', 'online'
@@ -156,6 +157,11 @@ function startGame(mode, difficulty) {
         initAiWorker();
     }
     else if (mode === 'online') modeText.textContent = `オンライン — Room: ${onlineRoomCode}`;
+
+    // Flip red bar 180 in PvP so opponent across can read it
+    const redBar = document.getElementById('red-bar');
+    if (mode === 'pvp') redBar.classList.add('flipped');
+    else redBar.classList.remove('flipped');
 
     resetGame();
 }
@@ -494,6 +500,20 @@ function executeMove(fromRow, fromCol, move, isRemote = false) {
     const piece = board[fromRow][fromCol];
     const hadCaptures = move.captures.length > 0;
 
+    // Save state for undo
+    const capturedInMove = [];
+    for (const cap of move.captures) {
+        const cp = board[cap.row][cap.col];
+        if (cp) capturedInMove.push({ row: cap.row, col: cap.col, piece: { ...cp } });
+    }
+    moveHistory.push({
+        fromRow, fromCol,
+        toRow: move.row, toCol: move.col,
+        piece: { ...piece },
+        captured: capturedInMove,
+        player: currentPlayer
+    });
+
     if (hadCaptures) { sounds.capture(); spawnCaptureParticles(move); shakeBoard(); }
     else { sounds.move(); }
 
@@ -526,6 +546,50 @@ function executeMove(fromRow, fromCol, move, isRemote = false) {
     if (gameMode === 'cpu' && currentPlayer === 'red' && !gameOver) {
         setTimeout(cpuTurn, 300);
     }
+}
+
+function undoMove() {
+    if (gameOver || moveHistory.length === 0) return;
+
+    // In CPU mode, undo both CPU and player move
+    if (gameMode === 'cpu') {
+        if (moveHistory.length >= 2 && moveHistory[moveHistory.length - 1].player === 'red') {
+            undoSingleMove();
+            undoSingleMove();
+        } else if (moveHistory.length >= 1) {
+            undoSingleMove();
+        }
+    } else if (gameMode === 'online') {
+        return; // No undo in online mode
+    } else {
+        undoSingleMove();
+    }
+
+    selectedPiece = null;
+    validMoves = [];
+    renderBoard();
+    renderCapturedTrays();
+    updateTurnIndicator();
+    updateHint();
+}
+
+function undoSingleMove() {
+    const last = moveHistory.pop();
+    if (!last) return;
+
+    // Move piece back
+    board[last.toRow][last.toCol] = null;
+    board[last.fromRow][last.fromCol] = last.piece;
+
+    // Restore captured pieces
+    for (const cap of last.captured) {
+        board[cap.row][cap.col] = cap.piece;
+        // Remove from captured trays
+        if (last.player === 'green') greenCapturedPieces.pop();
+        else redCapturedPieces.pop();
+    }
+
+    currentPlayer = last.player;
 }
 
 function animatePlacedPiece(row, col) {
@@ -707,6 +771,7 @@ function resetGame() {
     validMoves = [];
     greenCapturedPieces = [];
     redCapturedPieces = [];
+    moveHistory = [];
     gameOver = false;
 
     document.getElementById('win-modal').classList.add('hidden');
