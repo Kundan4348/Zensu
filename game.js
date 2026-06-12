@@ -15,10 +15,15 @@ let greenCapturedPieces = [];
 let redCapturedPieces = [];
 let gameOver = false;
 let moveHistory = []; // For undo
+let lastMove = null; // For highlighting
 
 // Mode state
 let gameMode = 'pvp'; // 'pvp', 'cpu', 'online'
 let cpuDifficulty = 'medium';
+let turnTimeLimit = 0; // 0 = unlimited, otherwise seconds
+let turnTimer = null;
+let turnTimeLeft = 0;
+let winStreak = parseInt(localStorage.getItem('zensu_streak') || '0');
 let onlineSocket = null;
 let onlinePlayerColor = null;
 let onlineRoomCode = null;
@@ -52,6 +57,19 @@ const sounds = {
         setTimeout(() => playTone(784, 0.25, 'sine', 0.12), 240);
     }
 };
+
+// ===== HAPTIC FEEDBACK =====
+function haptic(style) {
+    if (!navigator.vibrate) return;
+    switch (style) {
+        case 'tap': navigator.vibrate(10); break;
+        case 'move': navigator.vibrate(15); break;
+        case 'capture': navigator.vibrate([20, 30, 40]); break;
+        case 'win': navigator.vibrate([30, 50, 30, 50, 80]); break;
+        case 'error': navigator.vibrate([40, 20, 40]); break;
+        case 'timeout': navigator.vibrate([100, 50, 100]); break;
+    }
+}
 
 // ===== SAKURA ANIMATION =====
 function initSakura() {
@@ -122,24 +140,260 @@ function initSakura() {
     animate();
 }
 
+// ===== TURN TIMER =====
+function startTurnTimer() {
+    stopTurnTimer();
+    if (!turnTimeLimit || gameMode === 'cpu') return;
+
+    turnTimeLeft = turnTimeLimit;
+
+    // Show the correct timer bar based on current player
+    const greenBar = document.getElementById('timer-bar');
+    const redBar = document.getElementById('timer-bar-red');
+
+    if (currentPlayer === 'green') {
+        greenBar.classList.remove('hidden');
+        redBar.classList.add('hidden');
+    } else {
+        greenBar.classList.add('hidden');
+        if (gameMode === 'pvp') redBar.classList.remove('hidden');
+        else greenBar.classList.remove('hidden'); // online: show at bottom
+    }
+
+    updateTimerDisplay();
+
+    turnTimer = setInterval(() => {
+        turnTimeLeft--;
+        updateTimerDisplay();
+
+        if (turnTimeLeft <= 0) {
+            stopTurnTimer();
+            handleTimeOut();
+        }
+    }, 1000);
+}
+
+function stopTurnTimer() {
+    if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
+    document.getElementById('timer-bar').classList.add('hidden');
+    document.getElementById('timer-bar-red').classList.add('hidden');
+}
+
+function updateTimerDisplay() {
+    const isRed = currentPlayer === 'red' && gameMode === 'pvp';
+    const el = document.getElementById(isRed ? 'timer-text-red' : 'timer-text');
+    const bar = document.getElementById(isRed ? 'timer-fill-red' : 'timer-fill');
+    if (!el || !bar) return;
+
+    el.textContent = turnTimeLeft + 's';
+    const pct = (turnTimeLeft / turnTimeLimit) * 100;
+    bar.style.width = pct + '%';
+
+    if (turnTimeLeft <= 10) {
+        bar.classList.add('timer-urgent');
+        el.classList.add('timer-urgent');
+    } else {
+        bar.classList.remove('timer-urgent');
+        el.classList.remove('timer-urgent');
+    }
+}
+
+function handleTimeOut() {
+    if (gameOver) return;
+    haptic('timeout');
+    const winner = currentPlayer === 'green' ? 'red' : 'green';
+    showWin(winner, '時間切れ — Time\'s up!');
+}
+
 // ===== MENU LOGIC =====
-function showAiOptions() {
+function selectTimer(el) {
+    document.querySelectorAll('.timer-opt').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    turnTimeLimit = parseInt(el.dataset.time) || 0;
+}
+
+function showPlayOptions() {
     document.querySelector('.menu-container').classList.add('hidden');
+    document.getElementById('play-options').classList.remove('hidden');
+    history.pushState({ screen: 'submenu' }, '');
+}
+
+function showAiOptions() {
+    document.getElementById('play-options').classList.add('hidden');
     document.getElementById('ai-options').classList.remove('hidden');
-    document.getElementById('online-options').classList.add('hidden');
+    history.pushState({ screen: 'submenu' }, '');
 }
 
 function showOnlineOptions() {
-    document.querySelector('.menu-container').classList.add('hidden');
+    document.getElementById('play-options').classList.add('hidden');
     document.getElementById('online-options').classList.remove('hidden');
-    document.getElementById('ai-options').classList.add('hidden');
+    history.pushState({ screen: 'submenu' }, '');
+
+    const warning = document.getElementById('online-login-warning');
+    if (!currentUser) {
+        warning.classList.remove('hidden');
+    } else {
+        warning.classList.add('hidden');
+    }
 }
 
 function hideSubMenus() {
     document.querySelector('.menu-container').classList.remove('hidden');
+    document.getElementById('play-options').classList.add('hidden');
     document.getElementById('ai-options').classList.add('hidden');
     document.getElementById('online-options').classList.add('hidden');
     document.getElementById('online-status').classList.add('hidden');
+    document.getElementById('account-panel').classList.add('hidden');
+    document.getElementById('leaderboard-panel').classList.add('hidden');
+    document.getElementById('tutorial-panel').classList.add('hidden');
+}
+
+// ===== ACCOUNT SYSTEM =====
+let currentUser = null;
+
+function loadSavedSession() {
+    const saved = localStorage.getItem('zensu_user');
+    if (saved) {
+        try { currentUser = JSON.parse(saved); updateAccountUI(); } catch(e) {}
+    }
+}
+
+function updateAccountUI() {
+    const cornerBtn = document.getElementById('account-corner-btn');
+    const cornerIcon = document.getElementById('account-corner-icon');
+    const profileMini = document.getElementById('profile-mini');
+
+    if (currentUser) {
+        cornerBtn.classList.add('logged-in');
+        cornerIcon.textContent = currentUser.username[0].toUpperCase();
+
+        profileMini.classList.remove('hidden');
+        document.getElementById('profile-mini-name').textContent = currentUser.username;
+        document.getElementById('profile-mini-rank').textContent = currentUser.rank;
+        document.getElementById('profile-mini-pts').textContent = currentUser.points + ' pts';
+
+        const badge = document.getElementById('profile-mini-badge');
+        badge.className = 'profile-mini-badge ' + currentUser.rank;
+        badge.textContent = currentUser.rank[0].toUpperCase();
+    } else {
+        cornerBtn.classList.remove('logged-in');
+        cornerIcon.textContent = '人';
+        profileMini.classList.add('hidden');
+    }
+}
+
+function showAccountPanel() {
+    document.querySelector('.menu-container').classList.add('hidden');
+    document.getElementById('play-options').classList.add('hidden');
+    document.getElementById('ai-options').classList.add('hidden');
+    document.getElementById('online-options').classList.add('hidden');
+    document.getElementById('leaderboard-panel').classList.add('hidden');
+    document.getElementById('account-panel').classList.remove('hidden');
+    history.pushState({ screen: 'submenu' }, '');
+
+    if (currentUser) {
+        document.getElementById('auth-form').classList.add('hidden');
+        document.getElementById('profile-view').classList.remove('hidden');
+        document.getElementById('profile-name').textContent = currentUser.username;
+        document.getElementById('profile-rank-text').textContent = currentUser.rank;
+        document.getElementById('stat-points').textContent = currentUser.points;
+        document.getElementById('stat-wins').textContent = currentUser.wins;
+        document.getElementById('stat-losses').textContent = currentUser.losses;
+
+        const badge = document.getElementById('profile-rank-badge');
+        badge.className = 'profile-rank-badge ' + currentUser.rank;
+        badge.textContent = currentUser.rank[0].toUpperCase();
+    } else {
+        document.getElementById('auth-form').classList.remove('hidden');
+        document.getElementById('profile-view').classList.add('hidden');
+    }
+}
+
+async function doLogin() {
+    const username = document.getElementById('auth-username').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const errEl = document.getElementById('auth-error');
+    errEl.textContent = '';
+
+    if (!username || !password) { errEl.textContent = 'Enter username and password'; return; }
+
+    try {
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) { errEl.textContent = data.error; return; }
+
+        currentUser = { username: data.username, points: data.points, rank: data.rank, wins: data.wins, losses: data.losses };
+        localStorage.setItem('zensu_user', JSON.stringify(currentUser));
+        updateAccountUI();
+        showAccountPanel();
+    } catch (e) { errEl.textContent = 'Server not reachable'; }
+}
+
+async function doRegister() {
+    const username = document.getElementById('auth-username').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const errEl = document.getElementById('auth-error');
+    errEl.textContent = '';
+
+    if (!username || username.length < 2) { errEl.textContent = 'Username must be 2+ characters'; return; }
+    if (!password || password.length < 4) { errEl.textContent = 'Password must be 4+ characters'; return; }
+
+    try {
+        const res = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) { errEl.textContent = data.error; return; }
+
+        currentUser = { username, points: 0, rank: 'bronze', wins: 0, losses: 0 };
+        localStorage.setItem('zensu_user', JSON.stringify(currentUser));
+        updateAccountUI();
+        showAccountPanel();
+    } catch (e) { errEl.textContent = 'Server not reachable'; }
+}
+
+function doLogout() {
+    currentUser = null;
+    localStorage.removeItem('zensu_user');
+    updateAccountUI();
+    showAccountPanel();
+}
+
+async function showLeaderboard() {
+    document.querySelector('.menu-container').classList.add('hidden');
+    document.getElementById('leaderboard-panel').classList.remove('hidden');
+    history.pushState({ screen: 'submenu' }, '');
+
+    const list = document.getElementById('leaderboard-list');
+    list.innerHTML = '<p class="loading-text">Loading...</p>';
+
+    try {
+        const res = await fetch('/api/leaderboard');
+        const data = await res.json();
+
+        if (data.leaderboard.length === 0) {
+            list.innerHTML = '<p class="loading-text">No players yet. Be the first!</p>';
+            return;
+        }
+
+        list.innerHTML = data.leaderboard.map((p, i) => `
+            <div class="lb-row">
+                <span class="lb-pos ${i < 3 ? 'top3' : ''}">#${i + 1}</span>
+                <div class="lb-badge ${p.rank}">${p.rank[0].toUpperCase()}</div>
+                <span class="lb-name">${p.username}</span>
+                <span class="lb-points">${p.points}</span>
+                <span class="lb-record">${p.wins}W/${p.losses}L</span>
+            </div>
+        `).join('');
+    } catch (e) {
+        list.innerHTML = '<p class="loading-text">Server not reachable</p>';
+    }
 }
 
 function startGame(mode, difficulty) {
@@ -149,14 +403,8 @@ function startGame(mode, difficulty) {
     document.getElementById('menu-screen').classList.add('hidden');
     document.getElementById('game-screen').classList.remove('hidden');
 
-    const modeText = document.getElementById('mode-text');
-    if (mode === 'pvp') modeText.textContent = '対人戦 — Player vs Player';
-    else if (mode === 'cpu') {
-        const diffNames = { easy: '初級', medium: '中級', hard: '上級', expert: '達人' };
-        modeText.textContent = `対CPU (${diffNames[difficulty] || difficulty})`;
-        initAiWorker();
-    }
-    else if (mode === 'online') modeText.textContent = `オンライン — Room: ${onlineRoomCode}`;
+    if (mode === 'cpu') initAiWorker();
+    pushGameState();
 
     // Flip red bar 180 in PvP so opponent across can read it
     const redBar = document.getElementById('red-bar');
@@ -172,6 +420,7 @@ function backToMenu() {
     document.getElementById('win-modal').classList.add('hidden');
     hideSubMenus();
     disconnectOnline();
+    stopTurnTimer();
     gameOver = true;
 }
 
@@ -233,6 +482,9 @@ function connectOnline(onMessage, onOpen) {
     }
 
     onlineSocket.onopen = () => {
+        if (currentUser) {
+            onlineSocket.send(JSON.stringify({ type: 'auth', username: currentUser.username }));
+        }
         if (onOpen) onOpen();
     };
 
@@ -245,6 +497,15 @@ function connectOnline(onMessage, onOpen) {
         } else if (data.type === 'opponent_disconnected') {
             if (!gameOver) {
                 showWin(onlinePlayerColor, 'Opponent disconnected — 相手退出');
+            }
+        } else if (data.type === 'stats_update') {
+            if (currentUser) {
+                currentUser.points = data.points;
+                currentUser.rank = data.rank;
+                currentUser.wins = data.wins;
+                currentUser.losses = data.losses;
+                localStorage.setItem('zensu_user', JSON.stringify(currentUser));
+                updateAccountUI();
             }
         } else {
             if (onMessage) onMessage(data);
@@ -388,6 +649,11 @@ function renderBoard() {
                 cell.classList.add('selected');
             }
 
+            if (lastMove) {
+                if (lastMove.fromRow === row && lastMove.fromCol === col) cell.classList.add('last-move-from');
+                if (lastMove.toRow === row && lastMove.toCol === col) cell.classList.add('last-move-to');
+            }
+
             const move = validMoves.find(m => m.row === row && m.col === col);
             if (move) {
                 if (move.captures.length > 0 || (board[row][col] && board[row][col].player !== currentPlayer)) {
@@ -444,7 +710,7 @@ function getValidMoves(row, col) {
 
 // ===== INTERACTION =====
 function handleCellClick(row, col) {
-    if (gameOver) return;
+    if (gameOver || replayMode) return;
 
     // In online mode, only allow moves for your color
     if (gameMode === 'online' && currentPlayer !== onlinePlayerColor) return;
@@ -475,6 +741,7 @@ function selectPiece(row, col) {
     selectedPiece = { row, col };
     validMoves = getValidMoves(row, col);
     sounds.select();
+    haptic('tap');
     updateHint();
     renderBoard();
 }
@@ -488,6 +755,7 @@ function deselectPiece() {
 
 function triggerInvalidFeedback(row, col) {
     sounds.invalid();
+    haptic('error');
     const cells = document.querySelectorAll('.cell');
     const idx = row * COLS + col;
     if (cells[idx]) {
@@ -514,8 +782,8 @@ function executeMove(fromRow, fromCol, move, isRemote = false) {
         player: currentPlayer
     });
 
-    if (hadCaptures) { sounds.capture(); spawnCaptureParticles(move); shakeBoard(); }
-    else { sounds.move(); }
+    if (hadCaptures) { sounds.capture(); haptic('capture'); spawnCaptureParticles(move); shakeBoard(); }
+    else { sounds.move(); haptic('move'); }
 
     for (const cap of move.captures) {
         const capturedPiece = board[cap.row][cap.col];
@@ -530,6 +798,7 @@ function executeMove(fromRow, fromCol, move, isRemote = false) {
     board[move.row][move.col] = piece;
     selectedPiece = null;
     validMoves = [];
+    lastMove = { fromRow, fromCol, toRow: move.row, toCol: move.col };
 
     renderBoard();
     renderCapturedTrays();
@@ -541,9 +810,11 @@ function executeMove(fromRow, fromCol, move, isRemote = false) {
     updateTurnIndicator();
     updateHint();
     flashTurnChange();
+    startTurnTimer();
 
     // Trigger CPU turn
     if (gameMode === 'cpu' && currentPlayer === 'red' && !gameOver) {
+        stopTurnTimer();
         setTimeout(cpuTurn, 300);
     }
 }
@@ -710,20 +981,60 @@ function checkWin(piece, targetRow) {
 
 function showWin(winner, reason) {
     gameOver = true;
+    stopTurnTimer();
     sounds.win();
+    haptic('win');
+
+    // Track win streak (green = human in PvP/CPU, your color in online)
+    const playerWon = (gameMode === 'cpu' && winner === 'green')
+        || (gameMode === 'online' && winner === onlinePlayerColor)
+        || (gameMode === 'pvp');
+
+    if (gameMode !== 'pvp') {
+        if (playerWon) { winStreak++; }
+        else { winStreak = 0; }
+        localStorage.setItem('zensu_streak', winStreak);
+    }
+    updateStreakDisplay();
+
+    // Send game result to server for online ranked games
+    if (gameMode === 'online' && onlineSocket && onlineSocket.readyState === WebSocket.OPEN) {
+        onlineSocket.send(JSON.stringify({ type: 'game_over', winner }));
+    }
 
     setTimeout(() => {
         const modal = document.getElementById('win-modal');
         const message = document.getElementById('win-message');
         const reasonEl = document.getElementById('win-reason');
         const kanjiEl = document.getElementById('win-kanji');
+        const streakEl = document.getElementById('win-streak');
 
         message.textContent = `${winner === 'green' ? '先手' : '後手'} (${winner.charAt(0).toUpperCase() + winner.slice(1)}) Wins!`;
         message.style.color = winner === 'green' ? '#5ba67a' : '#c94058';
         reasonEl.textContent = reason;
         kanjiEl.textContent = '勝';
+
+        if (winStreak >= 2 && gameMode !== 'pvp' && playerWon) {
+            streakEl.textContent = `🔥 ${winStreak} win streak!`;
+            streakEl.classList.remove('hidden');
+        } else {
+            streakEl.classList.add('hidden');
+        }
+
         modal.classList.remove('hidden');
     }, 500);
+}
+
+function updateStreakDisplay() {
+    const el = document.getElementById('streak-badge');
+    if (el) {
+        if (winStreak >= 2) {
+            el.textContent = `🔥${winStreak}`;
+            el.classList.remove('hidden');
+        } else {
+            el.classList.add('hidden');
+        }
+    }
 }
 
 function updateTurnIndicator() {
@@ -772,6 +1083,7 @@ function resetGame() {
     greenCapturedPieces = [];
     redCapturedPieces = [];
     moveHistory = [];
+    lastMove = null;
     gameOver = false;
 
     document.getElementById('win-modal').classList.add('hidden');
@@ -782,12 +1094,227 @@ function resetGame() {
     renderCapturedTrays();
     updateTurnIndicator();
     updateHint();
+    startTurnTimer();
+    updateStreakDisplay();
 }
 
 function toggleRules() {
     document.getElementById('rules-panel').classList.toggle('hidden');
 }
 
+// ===== GAME REPLAY =====
+let replayMoves = [];
+let replayIndex = 0;
+let replayMode = false;
+let replayAutoInterval = null;
+
+function startReplay() {
+    if (moveHistory.length === 0) return;
+
+    replayMoves = [...moveHistory];
+    replayIndex = 0;
+    replayMode = true;
+
+    document.getElementById('win-modal').classList.add('hidden');
+    document.getElementById('controls').classList.add('hidden');
+    document.getElementById('replay-bar').classList.remove('hidden');
+
+    // Reset board to initial state
+    initBoard();
+    greenCapturedPieces = [];
+    redCapturedPieces = [];
+    currentPlayer = 'green';
+    lastMove = null;
+    selectedPiece = null;
+    validMoves = [];
+
+    renderBoard();
+    renderCapturedTrays();
+    updateTurnIndicator();
+    updateReplayStep();
+}
+
+function exitReplay() {
+    replayMode = false;
+    stopReplayAuto();
+    document.getElementById('controls').classList.remove('hidden');
+    document.getElementById('replay-bar').classList.add('hidden');
+
+    // Restore the final game state
+    initBoard();
+    greenCapturedPieces = [];
+    redCapturedPieces = [];
+    currentPlayer = 'green';
+    lastMove = null;
+
+    for (const move of replayMoves) {
+        applyReplayMove(move);
+    }
+
+    renderBoard();
+    renderCapturedTrays();
+    updateTurnIndicator();
+    gameOver = true;
+}
+
+function replayNext() {
+    if (replayIndex >= replayMoves.length) return;
+    const move = replayMoves[replayIndex];
+    applyReplayMove(move);
+    replayIndex++;
+    renderBoard();
+    renderCapturedTrays();
+    updateTurnIndicator();
+    updateReplayStep();
+}
+
+function replayPrev() {
+    if (replayIndex <= 0) return;
+    replayIndex--;
+
+    // Rebuild from scratch up to replayIndex
+    initBoard();
+    greenCapturedPieces = [];
+    redCapturedPieces = [];
+    currentPlayer = 'green';
+    lastMove = null;
+
+    for (let i = 0; i < replayIndex; i++) {
+        applyReplayMove(replayMoves[i]);
+    }
+
+    renderBoard();
+    renderCapturedTrays();
+    updateTurnIndicator();
+    updateReplayStep();
+}
+
+function replayFirst() {
+    replayIndex = 0;
+    initBoard();
+    greenCapturedPieces = [];
+    redCapturedPieces = [];
+    currentPlayer = 'green';
+    lastMove = null;
+    renderBoard();
+    renderCapturedTrays();
+    updateTurnIndicator();
+    updateReplayStep();
+}
+
+function replayLast() {
+    initBoard();
+    greenCapturedPieces = [];
+    redCapturedPieces = [];
+    currentPlayer = 'green';
+    lastMove = null;
+
+    for (let i = 0; i < replayMoves.length; i++) {
+        applyReplayMove(replayMoves[i]);
+    }
+    replayIndex = replayMoves.length;
+
+    renderBoard();
+    renderCapturedTrays();
+    updateTurnIndicator();
+    updateReplayStep();
+}
+
+function replayAutoToggle() {
+    const btn = document.getElementById('replay-play-btn');
+    if (replayAutoInterval) {
+        stopReplayAuto();
+    } else {
+        btn.textContent = '⏸';
+        btn.classList.add('playing');
+        replayAutoInterval = setInterval(() => {
+            if (replayIndex >= replayMoves.length) {
+                stopReplayAuto();
+                return;
+            }
+            replayNext();
+        }, 800);
+    }
+}
+
+function stopReplayAuto() {
+    const btn = document.getElementById('replay-play-btn');
+    if (replayAutoInterval) { clearInterval(replayAutoInterval); replayAutoInterval = null; }
+    btn.textContent = '⏵';
+    btn.classList.remove('playing');
+}
+
+function applyReplayMove(move) {
+    const piece = board[move.fromRow][move.fromCol];
+    for (const cap of move.captured) {
+        const cp = board[cap.row][cap.col];
+        if (cp) {
+            if (currentPlayer === 'green') greenCapturedPieces.push({ ...cp });
+            else redCapturedPieces.push({ ...cp });
+        }
+        board[cap.row][cap.col] = null;
+    }
+    board[move.fromRow][move.fromCol] = null;
+    board[move.toRow][move.toCol] = piece;
+    lastMove = { fromRow: move.fromRow, fromCol: move.fromCol, toRow: move.toRow, toCol: move.toCol };
+    currentPlayer = currentPlayer === 'green' ? 'red' : 'green';
+}
+
+function updateReplayStep() {
+    document.getElementById('replay-step').textContent = `${replayIndex} / ${replayMoves.length}`;
+}
+
+// ===== BROWSER BACK BUTTON HANDLING =====
+function pushGameState() {
+    history.pushState({ screen: 'game' }, '');
+}
+
+function pushMenuState() {
+    history.pushState({ screen: 'menu' }, '');
+}
+
+window.addEventListener('popstate', function(e) {
+    const gameScreen = document.getElementById('game-screen');
+    const gameVisible = !gameScreen.classList.contains('hidden');
+
+    const subMenuOpen = !document.getElementById('play-options').classList.contains('hidden')
+        || !document.getElementById('ai-options').classList.contains('hidden')
+        || !document.getElementById('online-options').classList.contains('hidden')
+        || !document.getElementById('account-panel').classList.contains('hidden')
+        || !document.getElementById('leaderboard-panel').classList.contains('hidden')
+        || !document.getElementById('tutorial-panel').classList.contains('hidden');
+
+    if (subMenuOpen && !gameVisible) {
+        hideSubMenus();
+        return;
+    }
+
+    if (gameVisible) {
+        if (!gameOver && moveHistory.length > 0) {
+            undoMove();
+            pushGameState();
+        } else {
+            showLeaveModal();
+            pushGameState();
+        }
+    }
+});
+
+function showLeaveModal() {
+    document.getElementById('leave-modal').classList.remove('hidden');
+}
+
+function confirmLeave() {
+    document.getElementById('leave-modal').classList.add('hidden');
+    backToMenu();
+}
+
+function cancelLeave() {
+    document.getElementById('leave-modal').classList.add('hidden');
+}
+
 // ===== INIT =====
 initSakura();
+pushMenuState();
+loadSavedSession();
 

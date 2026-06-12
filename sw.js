@@ -1,9 +1,10 @@
-const CACHE_NAME = 'zensu-v1';
+const CACHE_NAME = 'zensu-v24';
 const ASSETS = [
   '/',
   '/index.html',
   '/style.css',
   '/game.js',
+  '/tutorial.js',
   '/ai-worker.js',
   '/manifest.json',
   '/icon-192.png',

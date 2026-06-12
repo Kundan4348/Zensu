@@ -19,6 +19,11 @@
     <canvas id="sakura-canvas"></canvas>
 
     <div id="app">
+        <!-- Account button (top-right corner) -->
+        <button id="account-corner-btn" onclick="showAccountPanel()">
+            <span id="account-corner-icon">人</span>
+        </button>
+
         <!-- Menu Screen -->
         <div id="menu-screen">
             <div class="menu-hero">
@@ -39,6 +44,58 @@
             </div>
 
             <div class="menu-container">
+                <button class="menu-btn" onclick="showPlayOptions()">
+                    <div class="menu-btn-icon">遊</div>
+                    <div class="menu-btn-text">
+                        <span class="menu-btn-jp">対局</span>
+                        <span class="menu-btn-en">Play</span>
+                    </div>
+                </button>
+
+                <button class="menu-btn" onclick="showLeaderboard()">
+                    <div class="menu-btn-icon">位</div>
+                    <div class="menu-btn-text">
+                        <span class="menu-btn-jp">順位表</span>
+                        <span class="menu-btn-en">Leaderboard</span>
+                    </div>
+                </button>
+
+                <button class="menu-btn" onclick="showTutorial()">
+                    <div class="menu-btn-icon">学</div>
+                    <div class="menu-btn-text">
+                        <span class="menu-btn-jp">遊び方</span>
+                        <span class="menu-btn-en">How to Play</span>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Tutorial Panel -->
+            <div id="tutorial-panel" class="sub-menu hidden">
+                <h3>遊び方 — How to Play</h3>
+                <div class="tutorial-viewer">
+                    <canvas id="tutorial-canvas" width="320" height="320"></canvas>
+                    <div class="tutorial-controls">
+                        <button class="tut-nav" onclick="tutPrev()">←</button>
+                        <span class="tut-step" id="tut-step-label">1 / 5</span>
+                        <button class="tut-nav" onclick="tutNext()">→</button>
+                    </div>
+                    <p class="tut-description" id="tut-description"></p>
+                </div>
+                <button class="back-btn" onclick="hideSubMenus()">← 戻る Back</button>
+            </div>
+
+            <!-- Play sub-menu -->
+            <div id="play-options" class="sub-menu hidden">
+                <h3>対局 — Play</h3>
+                <div class="timer-select">
+                    <span class="timer-select-label">⏱ Turn Timer:</span>
+                    <div class="timer-options">
+                        <button class="timer-opt active" data-time="0" onclick="selectTimer(this)">∞</button>
+                        <button class="timer-opt" data-time="30" onclick="selectTimer(this)">30s</button>
+                        <button class="timer-opt" data-time="60" onclick="selectTimer(this)">60s</button>
+                        <button class="timer-opt" data-time="90" onclick="selectTimer(this)">90s</button>
+                    </div>
+                </div>
                 <button class="menu-btn" onclick="startGame('pvp')">
                     <div class="menu-btn-icon">対</div>
                     <div class="menu-btn-text">
@@ -46,7 +103,6 @@
                         <span class="menu-btn-en">Player vs Player</span>
                     </div>
                 </button>
-
                 <button class="menu-btn" onclick="showAiOptions()">
                     <div class="menu-btn-icon">機</div>
                     <div class="menu-btn-text">
@@ -54,7 +110,6 @@
                         <span class="menu-btn-en">Player vs CPU</span>
                     </div>
                 </button>
-
                 <button class="menu-btn" onclick="showOnlineOptions()">
                     <div class="menu-btn-icon">網</div>
                     <div class="menu-btn-text">
@@ -62,6 +117,17 @@
                         <span class="menu-btn-en">Online Multiplayer</span>
                     </div>
                 </button>
+                <button class="back-btn" onclick="hideSubMenus()">← 戻る Back</button>
+            </div>
+
+            <!-- Profile card (visible when logged in) -->
+            <div id="profile-mini" class="hidden" onclick="showAccountPanel()">
+                <div class="profile-mini-badge" id="profile-mini-badge">B</div>
+                <div class="profile-mini-info">
+                    <span class="profile-mini-name" id="profile-mini-name"></span>
+                    <span class="profile-mini-rank" id="profile-mini-rank"></span>
+                </div>
+                <span class="profile-mini-pts" id="profile-mini-pts">0 pts</span>
             </div>
 
             <!-- AI Difficulty Sub-menu -->
@@ -91,6 +157,10 @@
             <!-- Online Sub-menu -->
             <div id="online-options" class="sub-menu hidden">
                 <h3>オンライン — Online</h3>
+                <div id="online-login-warning" class="online-warning hidden">
+                    <span class="warning-icon">⚠</span>
+                    <p>ログインしていません — You are not logged in. Points earned in this match will be lost. <a href="#" onclick="event.preventDefault(); hideSubMenus(); showAccountPanel();">Login now</a></p>
+                </div>
                 <div class="online-actions">
                     <button class="online-btn" onclick="createRoom()">
                         <span class="menu-btn-jp">部屋作成</span>
@@ -110,6 +180,59 @@
                 </div>
                 <button class="back-btn" onclick="hideSubMenus(); disconnectOnline();">← 戻る Back</button>
             </div>
+
+            <!-- Account Panel -->
+            <div id="account-panel" class="sub-menu hidden">
+                <h3>アカウント — Account</h3>
+
+                <!-- Login/Register form (shown when logged out) -->
+                <div id="auth-form">
+                    <input type="text" id="auth-username" placeholder="Username" autocomplete="username">
+                    <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
+                    <div class="auth-buttons">
+                        <button class="online-btn" onclick="doLogin()">
+                            <span class="menu-btn-jp">ログイン</span>
+                            <span class="menu-btn-en">Login</span>
+                        </button>
+                        <button class="online-btn" onclick="doRegister()">
+                            <span class="menu-btn-jp">登録</span>
+                            <span class="menu-btn-en">Register</span>
+                        </button>
+                    </div>
+                    <p id="auth-error" class="auth-error"></p>
+                </div>
+
+                <!-- Profile (shown when logged in) -->
+                <div id="profile-view" class="hidden">
+                    <div class="profile-card">
+                        <div class="profile-rank-badge" id="profile-rank-badge">B</div>
+                        <div class="profile-info">
+                            <span class="profile-name" id="profile-name"></span>
+                            <span class="profile-rank-text" id="profile-rank-text"></span>
+                        </div>
+                    </div>
+                    <div class="profile-stats">
+                        <div class="stat"><span class="stat-val" id="stat-points">0</span><span class="stat-label">Points</span></div>
+                        <div class="stat"><span class="stat-val" id="stat-wins">0</span><span class="stat-label">Wins</span></div>
+                        <div class="stat"><span class="stat-val" id="stat-losses">0</span><span class="stat-label">Losses</span></div>
+                    </div>
+                    <button class="online-btn" onclick="doLogout()">
+                        <span class="menu-btn-jp">ログアウト</span>
+                        <span class="menu-btn-en">Logout</span>
+                    </button>
+                </div>
+
+                <button class="back-btn" onclick="hideSubMenus()">← 戻る Back</button>
+            </div>
+
+            <!-- Leaderboard Panel -->
+            <div id="leaderboard-panel" class="sub-menu hidden">
+                <h3>順位表 — Leaderboard</h3>
+                <div id="leaderboard-list" class="leaderboard-list">
+                    <p class="loading-text">Loading...</p>
+                </div>
+                <button class="back-btn" onclick="hideSubMenus()">← 戻る Back</button>
+            </div>
         </div>
 
         <!-- Game Screen -->
@@ -118,10 +241,7 @@
                 <h1>禅数</h1>
                 <p class="subtitle">Z E N S U</p>
             </header>
-
-            <div id="game-mode-badge">
-                <span id="mode-text"></span>
-            </div>
+            <span id="streak-badge" class="streak-badge hidden"></span>
 
             <!-- Red player info (flipped for opponent sitting across) -->
             <div id="red-bar">
@@ -133,6 +253,11 @@
                     </div>
                     <div class="captured-tray" id="red-captured-tray"></div>
                 </div>
+                <!-- Red's timer (visible in PvP, flipped with red-bar) -->
+                <div id="timer-bar-red" class="hidden">
+                    <div id="timer-fill-red"></div>
+                    <span id="timer-text-red">60s</span>
+                </div>
             </div>
 
             <div id="board-container">
@@ -141,34 +266,38 @@
                 <div class="board-reflection"></div>
             </div>
 
-            <!-- Green player info (normal orientation, bottom) -->
-            <div id="green-bar">
-                <div class="player-panel green-panel" id="green-panel">
-                    <div class="player-header">
-                        <div class="player-stone green-stone"></div>
-                        <span class="player-name">先手</span>
-                        <span class="player-english">Green</span>
-                    </div>
-                    <div class="captured-tray" id="green-captured-tray"></div>
-                </div>
+            <!-- Turn Timer -->
+            <div id="timer-bar" class="hidden">
+                <div id="timer-fill"></div>
+                <span id="timer-text">60s</span>
             </div>
 
-            <div id="turn-indicator-row">
-                <div class="turn-badge" id="turn-indicator">
-                    <span class="turn-kanji" id="turn-kanji">緑</span>
-                    <span class="turn-text">の番</span>
+            <!-- Green player info + in-game actions -->
+            <div id="green-bar">
+                <div class="game-bar-row">
+                    <div class="player-panel green-panel" id="green-panel">
+                        <div class="player-header">
+                            <div class="player-stone green-stone"></div>
+                            <span class="player-name">先手</span>
+                            <span class="player-english">Green</span>
+                        </div>
+                        <div class="captured-tray" id="green-captured-tray"></div>
+                    </div>
+                    <div class="game-actions">
+                        <div class="turn-badge" id="turn-indicator">
+                            <span class="turn-kanji" id="turn-kanji">緑</span>
+                            <span class="turn-text">の番</span>
+                        </div>
+                        <button id="undo-btn" onclick="undoMove()">↩ Undo</button>
+                    </div>
                 </div>
                 <p id="hint-text"></p>
             </div>
 
             <div id="controls">
-                <button id="menu-btn" onclick="backToMenu()">
+                <button id="menu-btn" onclick="showLeaveModal()">
                     <span>戻る</span>
                     <small>Menu</small>
-                </button>
-                <button id="undo-btn" onclick="undoMove()">
-                    <span>待った</span>
-                    <small>Undo</small>
                 </button>
                 <button id="new-game-btn" onclick="resetGame()">
                     <span>新局</span>
@@ -178,6 +307,17 @@
                     <span>規則</span>
                     <small>Rules</small>
                 </button>
+            </div>
+
+            <!-- Replay controls (shown during replay) -->
+            <div id="replay-bar" class="hidden">
+                <button class="replay-btn" onclick="replayFirst()">⏮</button>
+                <button class="replay-btn" onclick="replayPrev()">◀</button>
+                <span class="replay-step" id="replay-step">0 / 0</span>
+                <button class="replay-btn" onclick="replayNext()">▶</button>
+                <button class="replay-btn" onclick="replayLast()">⏭</button>
+                <button class="replay-btn replay-play" id="replay-play-btn" onclick="replayAutoToggle()">⏵</button>
+                <button class="replay-btn replay-exit" onclick="exitReplay()">✕</button>
             </div>
 
             <!-- CPU thinking indicator -->
@@ -225,13 +365,28 @@
             </div>
         </div>
 
+        <!-- Leave Confirmation Modal -->
+        <div id="leave-modal" class="hidden">
+            <div class="modal-content leave-modal-content">
+                <div class="leave-kanji">退</div>
+                <h2>対局を中断しますか？</h2>
+                <p>Leave this game? Progress will be lost.</p>
+                <div class="leave-buttons">
+                    <button onclick="confirmLeave()">はい — Yes</button>
+                    <button class="secondary-btn" onclick="cancelLeave()">いいえ — No</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Win Modal -->
         <div id="win-modal" class="hidden">
             <div class="modal-content">
                 <div class="win-kanji" id="win-kanji">勝</div>
                 <h2 id="win-message">Green Wins!</h2>
                 <p id="win-reason"></p>
+                <p id="win-streak" class="win-streak hidden"></p>
                 <div class="win-buttons">
+                    <button onclick="startReplay()">再生 — Replay</button>
                     <button onclick="resetGame()">再戦 — Rematch</button>
                     <button class="secondary-btn" onclick="backToMenu()">メニュー — Menu</button>
                 </div>
@@ -239,6 +394,7 @@
         </div>
     </div>
 
+    <script src="tutorial.js"></script>
     <script src="game.js"></script>
     <script>
     if ('serviceWorker' in navigator) {

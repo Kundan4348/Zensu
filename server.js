@@ -1,35 +1,125 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 
 const PORT = 8080;
 const WS_PORT = 8081;
+const DB_FILE = path.join(__dirname, 'players.json');
+
+// ===== Player Database =====
+let players = {};
+
+function loadDB() {
+    try {
+        if (fs.existsSync(DB_FILE)) {
+            players = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+        }
+    } catch (e) { players = {}; }
+}
+
+function saveDB() {
+    fs.writeFileSync(DB_FILE, JSON.stringify(players, null, 2));
+}
+
+function hashPassword(pass) {
+    return crypto.createHash('sha256').update(pass).digest('hex');
+}
+
+function getRank(points) {
+    if (points >= 500) return 'platinum';
+    if (points >= 250) return 'gold';
+    if (points >= 100) return 'silver';
+    return 'bronze';
+}
+
+function getLeaderboard() {
+    return Object.entries(players)
+        .map(([username, data]) => ({
+            username,
+            points: data.points,
+            rank: getRank(data.points),
+            wins: data.wins,
+            losses: data.losses
+        }))
+        .sort((a, b) => b.points - a.points)
+        .slice(0, 50);
+}
+
+loadDB();
 
 // ===== Static file server =====
 const MIME_TYPES = {
     '.html': 'text/html',
     '.css': 'text/css',
     '.js': 'application/javascript',
+    '.json': 'application/json',
     '.png': 'image/png',
     '.ico': 'image/x-icon',
 };
 
 const httpServer = http.createServer((req, res) => {
+    // API routes
+    if (req.method === 'POST' && req.url === '/api/register') {
+        return handleBody(req, res, (body) => {
+            const { username, password } = body;
+            if (!username || !password || username.length < 2 || password.length < 4) {
+                return jsonRes(res, 400, { error: 'Username (2+ chars) and password (4+ chars) required' });
+            }
+            if (players[username]) {
+                return jsonRes(res, 409, { error: 'Username already taken' });
+            }
+            players[username] = { passwordHash: hashPassword(password), points: 0, wins: 0, losses: 0, created: Date.now() };
+            saveDB();
+            jsonRes(res, 200, { success: true, points: 0, rank: 'bronze', wins: 0, losses: 0 });
+        });
+    }
+
+    if (req.method === 'POST' && req.url === '/api/login') {
+        return handleBody(req, res, (body) => {
+            const { username, password } = body;
+            const player = players[username];
+            if (!player || player.passwordHash !== hashPassword(password)) {
+                return jsonRes(res, 401, { error: 'Invalid username or password' });
+            }
+            jsonRes(res, 200, { success: true, username, points: player.points, rank: getRank(player.points), wins: player.wins, losses: player.losses });
+        });
+    }
+
+    if (req.method === 'GET' && req.url === '/api/leaderboard') {
+        return jsonRes(res, 200, { leaderboard: getLeaderboard() });
+    }
+
+    if (req.method === 'GET' && req.url.startsWith('/api/profile/')) {
+        const username = decodeURIComponent(req.url.split('/api/profile/')[1]);
+        const player = players[username];
+        if (!player) return jsonRes(res, 404, { error: 'Player not found' });
+        return jsonRes(res, 200, { username, points: player.points, rank: getRank(player.points), wins: player.wins, losses: player.losses });
+    }
+
+    // Static files
     let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : req.url);
     const ext = path.extname(filePath);
     const mimeType = MIME_TYPES[ext] || 'application/octet-stream';
 
     fs.readFile(filePath, (err, data) => {
-        if (err) {
-            res.writeHead(404);
-            res.end('Not found');
-            return;
-        }
+        if (err) { res.writeHead(404); res.end('Not found'); return; }
         res.writeHead(200, { 'Content-Type': mimeType });
         res.end(data);
     });
 });
+
+function handleBody(req, res, cb) {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => { try { cb(JSON.parse(body)); } catch(e) { jsonRes(res, 400, { error: 'Invalid JSON' }); } });
+}
+
+function jsonRes(res, code, obj) {
+    res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify(obj));
+}
 
 httpServer.listen(PORT, () => {
     console.log(`\n  ┌─────────────────────────────────────────┐`);
@@ -43,7 +133,7 @@ httpServer.listen(PORT, () => {
     console.log(`  └─────────────────────────────────────────┘\n`);
 });
 
-// ===== WebSocket server for online multiplayer =====
+// ===== WebSocket server =====
 const rooms = new Map();
 
 function generateCode() {
@@ -58,22 +148,30 @@ const wss = new WebSocketServer({ port: WS_PORT });
 wss.on('connection', (ws) => {
     ws.isAlive = true;
     ws.roomCode = null;
+    ws.username = null;
+
+    ws.on('pong', () => { ws.isAlive = true; });
 
     ws.on('message', (raw) => {
         let data;
         try { data = JSON.parse(raw); } catch (e) { return; }
 
         switch (data.type) {
+            case 'auth': {
+                ws.username = data.username || null;
+                break;
+            }
+
             case 'create_room': {
                 let code = generateCode();
                 while (rooms.has(code)) code = generateCode();
 
-                rooms.set(code, { green: ws, red: null });
+                rooms.set(code, { green: ws, red: null, greenUser: ws.username, redUser: null });
                 ws.roomCode = code;
                 ws.playerColor = 'green';
 
                 ws.send(JSON.stringify({ type: 'room_created', code }));
-                console.log(`Room ${code} created`);
+                console.log(`Room ${code} created by ${ws.username || 'anon'}`);
                 break;
             }
 
@@ -81,33 +179,57 @@ wss.on('connection', (ws) => {
                 const code = (data.code || '').toUpperCase();
                 const room = rooms.get(code);
 
-                if (!room) {
-                    ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
-                    return;
-                }
-                if (room.red) {
-                    ws.send(JSON.stringify({ type: 'error', message: 'Room is full' }));
-                    return;
-                }
+                if (!room) { ws.send(JSON.stringify({ type: 'error', message: 'Room not found' })); return; }
+                if (room.red) { ws.send(JSON.stringify({ type: 'error', message: 'Room is full' })); return; }
 
                 room.red = ws;
+                room.redUser = ws.username;
                 ws.roomCode = code;
                 ws.playerColor = 'red';
 
                 ws.send(JSON.stringify({ type: 'joined', code }));
-                room.green.send(JSON.stringify({ type: 'game_start' }));
-                room.red.send(JSON.stringify({ type: 'game_start' }));
-                console.log(`Room ${code}: player joined, game starting`);
+                room.green.send(JSON.stringify({ type: 'game_start', opponent: ws.username }));
+                room.red.send(JSON.stringify({ type: 'game_start', opponent: room.greenUser }));
+                console.log(`Room ${code}: ${ws.username || 'anon'} joined`);
                 break;
             }
 
             case 'move': {
                 const room = rooms.get(ws.roomCode);
                 if (!room) return;
-
                 const opponent = ws.playerColor === 'green' ? room.red : room.green;
                 if (opponent && opponent.readyState === 1) {
                     opponent.send(JSON.stringify({ type: 'opponent_move', move: data.move }));
+                }
+                break;
+            }
+
+            case 'game_over': {
+                const room = rooms.get(ws.roomCode);
+                if (!room) return;
+                const winner = data.winner;
+                const greenUser = room.greenUser;
+                const redUser = room.redUser;
+
+                if (greenUser && players[greenUser] && redUser && players[redUser]) {
+                    if (winner === 'green') {
+                        players[greenUser].points = Math.max(0, players[greenUser].points + 25);
+                        players[greenUser].wins++;
+                        players[redUser].points = Math.max(0, players[redUser].points - 15);
+                        players[redUser].losses++;
+                    } else if (winner === 'red') {
+                        players[redUser].points = Math.max(0, players[redUser].points + 25);
+                        players[redUser].wins++;
+                        players[greenUser].points = Math.max(0, players[greenUser].points - 15);
+                        players[greenUser].losses++;
+                    }
+                    saveDB();
+
+                    // Send updated stats to both
+                    const gp = players[greenUser];
+                    const rp = players[redUser];
+                    room.green.send(JSON.stringify({ type: 'stats_update', points: gp.points, rank: getRank(gp.points), wins: gp.wins, losses: gp.losses }));
+                    room.red.send(JSON.stringify({ type: 'stats_update', points: rp.points, rank: getRank(rp.points), wins: rp.wins, losses: rp.losses }));
                 }
                 break;
             }
@@ -123,13 +245,11 @@ wss.on('connection', (ws) => {
                     opponent.send(JSON.stringify({ type: 'opponent_disconnected' }));
                 }
                 rooms.delete(ws.roomCode);
-                console.log(`Room ${ws.roomCode} closed`);
             }
         }
     });
 });
 
-// Keep-alive ping
 setInterval(() => {
     wss.clients.forEach(ws => {
         if (!ws.isAlive) return ws.terminate();
@@ -137,7 +257,3 @@ setInterval(() => {
         ws.ping();
     });
 }, 30000);
-
-wss.on('connection', (ws) => {
-    ws.on('pong', () => { ws.isAlive = true; });
-});
