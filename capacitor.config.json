@@ -1,0 +1,13 @@
+{
+  "appId": "com.zensu.game",
+  "appName": "Zensu",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "preferredContentMode": "mobile",
+    "scheme": "Zensu"
+  }
+}

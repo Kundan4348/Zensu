@@ -1,0 +1,17 @@
+{
+  "name": "zensu-game",
+  "version": "1.0.0",
+  "description": "Zensu - Japanese strategic board game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "sync": "cp index.html style.css game.js ai-worker.js manifest.json sw.js icon-192.png icon-512.png www/ && npx cap sync ios",
+    "open:ios": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/cli": "^8.4.0",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/ios": "^8.4.0",
+    "ws": "^8.16.0"
+  }
+}

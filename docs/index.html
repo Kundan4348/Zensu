@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Zensu">
+    <meta name="theme-color" content="#0d0d1a">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>禅数 — Zensu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Zen+Antique&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="sakura-canvas"></canvas>
+
+    <div id="app">
+        <!-- Menu Screen -->
+        <div id="menu-screen">
+            <div class="menu-hero">
+                <div class="enso-circle"></div>
+                <header>
+                    <h1>禅数</h1>
+                    <p class="subtitle">Z E N S U</p>
+                </header>
+                <p class="menu-tagline">戦略の道 — The Way of Strategy</p>
+            </div>
+
+            <div class="menu-divider">
+                <span class="divider-dot"></span>
+                <span class="divider-line"></span>
+                <span class="divider-kanji">局</span>
+                <span class="divider-line"></span>
+                <span class="divider-dot"></span>
+            </div>
+
+            <div class="menu-container">
+                <button class="menu-btn" onclick="startGame('pvp')">
+                    <div class="menu-btn-icon">対</div>
+                    <div class="menu-btn-text">
+                        <span class="menu-btn-jp">対人戦</span>
+                        <span class="menu-btn-en">Player vs Player</span>
+                    </div>
+                </button>
+
+                <button class="menu-btn" onclick="showAiOptions()">
+                    <div class="menu-btn-icon">機</div>
+                    <div class="menu-btn-text">
+                        <span class="menu-btn-jp">対CPU</span>
+                        <span class="menu-btn-en">Player vs CPU</span>
+                    </div>
+                </button>
+
+                <button class="menu-btn" onclick="showOnlineOptions()">
+                    <div class="menu-btn-icon">網</div>
+                    <div class="menu-btn-text">
+                        <span class="menu-btn-jp">対戦</span>
+                        <span class="menu-btn-en">Online Multiplayer</span>
+                    </div>
+                </button>
+            </div>
+
+            <!-- AI Difficulty Sub-menu -->
+            <div id="ai-options" class="sub-menu hidden">
+                <h3>難易度 — Difficulty</h3>
+                <div class="difficulty-buttons">
+                    <button class="diff-btn" onclick="startGame('cpu', 'easy')">
+                        <span class="diff-jp">初級</span>
+                        <span class="diff-en">Easy</span>
+                    </button>
+                    <button class="diff-btn" onclick="startGame('cpu', 'medium')">
+                        <span class="diff-jp">中級</span>
+                        <span class="diff-en">Medium</span>
+                    </button>
+                    <button class="diff-btn" onclick="startGame('cpu', 'hard')">
+                        <span class="diff-jp">上級</span>
+                        <span class="diff-en">Hard</span>
+                    </button>
+                    <button class="diff-btn diff-expert" onclick="startGame('cpu', 'expert')">
+                        <span class="diff-jp">達人</span>
+                        <span class="diff-en">Expert</span>
+                    </button>
+                </div>
+                <button class="back-btn" onclick="hideSubMenus()">← 戻る Back</button>
+            </div>
+
+            <!-- Online Sub-menu -->
+            <div id="online-options" class="sub-menu hidden">
+                <h3>オンライン — Online</h3>
+                <div class="online-actions">
+                    <button class="online-btn" onclick="createRoom()">
+                        <span class="menu-btn-jp">部屋作成</span>
+                        <span class="menu-btn-en">Create Room</span>
+                    </button>
+                    <div class="join-room">
+                        <input type="text" id="room-code-input" placeholder="Room Code" maxlength="6" autocomplete="off">
+                        <button class="online-btn join-btn" onclick="joinRoom()">
+                            <span class="menu-btn-jp">参加</span>
+                            <span class="menu-btn-en">Join</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="online-status" class="hidden">
+                    <div class="status-spinner"></div>
+                    <p id="online-status-text">Connecting...</p>
+                </div>
+                <button class="back-btn" onclick="hideSubMenus(); disconnectOnline();">← 戻る Back</button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="hidden">
+            <header>
+                <h1>禅数</h1>
+                <p class="subtitle">Z E N S U</p>
+            </header>
+
+            <div id="game-mode-badge">
+                <span id="mode-text"></span>
+            </div>
+
+            <div id="game-info">
+                <div class="player-panel green-panel" id="green-panel">
+                    <div class="player-header">
+                        <div class="player-stone green-stone"></div>
+                        <span class="player-name">先手</span>
+                        <span class="player-english">Green</span>
+                    </div>
+                    <div class="captured-tray" id="green-captured-tray"></div>
+                </div>
+
+                <div class="turn-badge" id="turn-indicator">
+                    <span class="turn-kanji" id="turn-kanji">緑</span>
+                    <span class="turn-text">の番</span>
+                </div>
+
+                <div class="player-panel red-panel" id="red-panel">
+                    <div class="player-header">
+                        <span class="player-english">Red</span>
+                        <span class="player-name">後手</span>
+                        <div class="player-stone red-stone"></div>
+                    </div>
+                    <div class="captured-tray" id="red-captured-tray"></div>
+                </div>
+            </div>
+
+            <div id="board-container">
+                <div class="board-glass-layer"></div>
+                <div id="board"></div>
+                <div class="board-reflection"></div>
+            </div>
+
+            <div id="move-hint">
+                <p id="hint-text">駒を選んでください</p>
+            </div>
+
+            <div id="controls">
+                <button id="menu-btn" onclick="backToMenu()">
+                    <span>戻る</span>
+                    <small>Menu</small>
+                </button>
+                <button id="new-game-btn" onclick="resetGame()">
+                    <span>新局</span>
+                    <small>New Game</small>
+                </button>
+                <button id="rules-btn" onclick="toggleRules()">
+                    <span>規則</span>
+                    <small>Rules</small>
+                </button>
+            </div>
+
+            <!-- CPU thinking indicator -->
+            <div id="cpu-thinking" class="hidden">
+                <div class="thinking-dots">
+                    <span></span><span></span><span></span>
+                </div>
+                <p>CPU考え中...</p>
+            </div>
+        </div>
+
+        <!-- Rules Panel -->
+        <div id="rules-panel" class="hidden">
+            <div class="rules-content">
+                <h2>禅数の遊び方</h2>
+                <button class="close-btn" onclick="toggleRules()">&times;</button>
+
+                <h3>Objective — 目的</h3>
+                <p>Win by landing any piece on your opponent's <strong>back row</strong>, or by capturing all opponent pieces.</p>
+
+                <h3>Pieces — 駒</h3>
+                <p>Each player has 12 pieces: 6 "Type I" (front) and 6 "Type II" (back). Numbers show exact movement distance in each direction.</p>
+
+                <div class="piece-diagram">
+                    <div><strong>Type I:</strong> ↑1 ←2 ↓3 →4</div>
+                    <div><strong>Type II:</strong> ↑2 ←3 ↓4 →1</div>
+                </div>
+
+                <h3>Movement — 移動</h3>
+                <ul>
+                    <li>Move exactly the number of spaces shown</li>
+                    <li>Orthogonal only (no diagonals)</li>
+                    <li>Can jump over your own pieces</li>
+                    <li>Cannot move off the board</li>
+                </ul>
+
+                <h3>Capturing — 取る</h3>
+                <ul>
+                    <li>Land on an opponent's piece to capture it</li>
+                    <li>Jump over an opponent's piece to capture it</li>
+                    <li>A single move can capture multiple pieces</li>
+                </ul>
+
+                <h3>先手 (Green) moves first.</h3>
+            </div>
+        </div>
+
+        <!-- Win Modal -->
+        <div id="win-modal" class="hidden">
+            <div class="modal-content">
+                <div class="win-kanji" id="win-kanji">勝</div>
+                <h2 id="win-message">Green Wins!</h2>
+                <p id="win-reason"></p>
+                <div class="win-buttons">
+                    <button onclick="resetGame()">再戦 — Rematch</button>
+                    <button class="secondary-btn" onclick="backToMenu()">メニュー — Menu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js');
+    }
+    </script>
+</body>
+</html>
