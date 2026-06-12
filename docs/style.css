@@ -857,7 +857,8 @@ header h1 {
 .rankup-modal-content {
     position: relative;
     text-align: center;
-    padding: 40px 50px !important;
+    padding: 30px 24px !important;
+    max-width: 90vw !important;
     overflow: visible !important;
     border-color: var(--gold) !important;
 }
@@ -1894,7 +1895,8 @@ header h1 {
     box-shadow:
         0 20px 60px rgba(0, 0, 0, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
-    padding: 35px 40px !important;
+    padding: 28px 24px !important;
+    max-width: 90vw !important;
     animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
@@ -1962,11 +1964,13 @@ header h1 {
 .modal-content {
     text-align: center;
     background: linear-gradient(145deg, rgba(30,25,40,0.98), rgba(15,10,25,0.98));
-    padding: 45px 55px;
+    padding: 30px 24px;
     border-radius: 24px;
     border: 2px solid var(--gold);
     box-shadow: 0 0 80px rgba(201,168,76,0.15);
     animation: winPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-width: 90vw;
+    box-sizing: border-box;
 }
 
 @keyframes winPopIn {
@@ -1976,10 +1980,10 @@ header h1 {
 
 .win-kanji {
     font-family: 'Zen Antique', serif;
-    font-size: 4rem;
+    font-size: 3rem;
     color: var(--gold);
     text-shadow: 0 0 30px rgba(201,168,76,0.4);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     animation: winKanjiGlow 2s ease-in-out infinite;
 }
 
@@ -1988,22 +1992,23 @@ header h1 {
     50% { text-shadow: 0 0 40px rgba(201,168,76,0.6); }
 }
 
-.modal-content h2 { font-size: 1.8rem; margin-bottom: 8px; }
-.modal-content p { color: rgba(255,255,255,0.5); margin-bottom: 24px; }
+.modal-content h2 { font-size: 1.4rem; margin-bottom: 6px; }
+.modal-content p { color: rgba(255,255,255,0.5); margin-bottom: 16px; font-size: 0.8rem; }
 
 .win-buttons {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     justify-content: center;
+    flex-wrap: wrap;
 }
 
 .win-buttons button {
-    padding: 12px 28px;
+    padding: 10px 18px;
     background: linear-gradient(135deg, var(--gold), #a07a30);
     border: none;
     border-radius: 12px;
     font-family: 'Noto Serif JP', serif;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: #1a1a2e;
     cursor: pointer;
