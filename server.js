@@ -162,7 +162,7 @@ wss.on('connection', (ws) => {
                 let code = generateCode();
                 while (rooms.has(code)) code = generateCode();
 
-                rooms.set(code, { green: ws, red: null, greenUser: ws.username, redUser: null });
+                rooms.set(code, { green: ws, red: null, greenUser: ws.username, redUser: null, scored: false });
                 ws.roomCode = code;
                 ws.playerColor = 'green';
 
@@ -202,12 +202,17 @@ wss.on('connection', (ws) => {
 
             case 'game_over': {
                 const room = rooms.get(ws.roomCode);
-                if (!room) return;
+                if (!room || room.scored) return;
+                room.scored = true; // Prevent double-scoring
+
                 const winner = data.winner;
                 const greenUser = room.greenUser;
                 const redUser = room.redUser;
 
                 if (greenUser && players[greenUser] && redUser && players[redUser]) {
+                    const oldGreenRank = getRank(players[greenUser].points);
+                    const oldRedRank = getRank(players[redUser].points);
+
                     if (winner === 'green') {
                         players[greenUser].points = Math.max(0, players[greenUser].points + 25);
                         players[greenUser].wins++;
@@ -221,11 +226,21 @@ wss.on('connection', (ws) => {
                     }
                     saveDB();
 
-                    // Send updated stats to both
                     const gp = players[greenUser];
                     const rp = players[redUser];
-                    room.green.send(JSON.stringify({ type: 'stats_update', points: gp.points, rank: getRank(gp.points), wins: gp.wins, losses: gp.losses }));
-                    room.red.send(JSON.stringify({ type: 'stats_update', points: rp.points, rank: getRank(rp.points), wins: rp.wins, losses: rp.losses }));
+                    const newGreenRank = getRank(gp.points);
+                    const newRedRank = getRank(rp.points);
+
+                    room.green.send(JSON.stringify({
+                        type: 'stats_update', points: gp.points, rank: newGreenRank,
+                        wins: gp.wins, losses: gp.losses,
+                        rankUp: newGreenRank !== oldGreenRank ? newGreenRank : null
+                    }));
+                    room.red.send(JSON.stringify({
+                        type: 'stats_update', points: rp.points, rank: newRedRank,
+                        wins: rp.wins, losses: rp.losses,
+                        rankUp: newRedRank !== oldRedRank ? newRedRank : null
+                    }));
                 }
                 break;
             }

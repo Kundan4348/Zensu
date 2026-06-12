@@ -216,6 +216,15 @@
                         <div class="stat"><span class="stat-val" id="stat-wins">0</span><span class="stat-label">Wins</span></div>
                         <div class="stat"><span class="stat-val" id="stat-losses">0</span><span class="stat-label">Losses</span></div>
                     </div>
+                    <div class="league-progress" id="league-progress">
+                        <div class="league-bar-row">
+                            <span class="league-current" id="league-current">Bronze</span>
+                            <span class="league-next" id="league-next">→ Silver (100pts)</span>
+                        </div>
+                        <div class="league-bar">
+                            <div class="league-fill" id="league-fill"></div>
+                        </div>
+                    </div>
                     <button class="online-btn" onclick="doLogout()">
                         <span class="menu-btn-jp">ログアウト</span>
                         <span class="menu-btn-en">Logout</span>
@@ -362,6 +371,18 @@
                 </ul>
 
                 <h3>先手 (Green) moves first.</h3>
+            </div>
+        </div>
+
+        <!-- Rank Up Modal -->
+        <div id="rankup-modal" class="hidden">
+            <div class="modal-content rankup-modal-content">
+                <div class="rankup-glow"></div>
+                <div class="rankup-badge" id="rankup-badge">S</div>
+                <h2 id="rankup-title">Rank Up!</h2>
+                <p id="rankup-subtitle">昇格 — You've been promoted</p>
+                <div class="rankup-rank" id="rankup-rank-name">Silver</div>
+                <button onclick="closeRankUp()">続ける — Continue</button>
             </div>
         </div>
 

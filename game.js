@@ -303,6 +303,7 @@ function showAccountPanel() {
         const badge = document.getElementById('profile-rank-badge');
         badge.className = 'profile-rank-badge ' + currentUser.rank;
         badge.textContent = currentUser.rank[0].toUpperCase();
+        updateLeagueProgress();
     } else {
         document.getElementById('auth-form').classList.remove('hidden');
         document.getElementById('profile-view').classList.add('hidden');
@@ -363,6 +364,52 @@ function doLogout() {
     localStorage.removeItem('zensu_user');
     updateAccountUI();
     showAccountPanel();
+}
+
+function showRankUpModal(newRank) {
+    const modal = document.getElementById('rankup-modal');
+    const badge = document.getElementById('rankup-badge');
+    const rankName = document.getElementById('rankup-rank-name');
+
+    badge.className = 'rankup-badge ' + newRank;
+    badge.textContent = newRank[0].toUpperCase();
+    rankName.textContent = newRank.charAt(0).toUpperCase() + newRank.slice(1);
+
+    modal.classList.remove('hidden');
+}
+
+function closeRankUp() {
+    document.getElementById('rankup-modal').classList.add('hidden');
+}
+
+function updateLeagueProgress() {
+    if (!currentUser) return;
+    const pts = currentUser.points;
+    const ranks = [
+        { name: 'bronze', min: 0, max: 99 },
+        { name: 'silver', min: 100, max: 249 },
+        { name: 'gold', min: 250, max: 499 },
+        { name: 'platinum', min: 500, max: Infinity }
+    ];
+
+    const currentRank = ranks.find(r => pts >= r.min && pts <= r.max);
+    const currentIdx = ranks.indexOf(currentRank);
+    const nextRank = currentIdx < ranks.length - 1 ? ranks[currentIdx + 1] : null;
+
+    const currentEl = document.getElementById('league-current');
+    const nextEl = document.getElementById('league-next');
+    const fillEl = document.getElementById('league-fill');
+
+    if (currentEl) currentEl.textContent = currentRank.name;
+
+    if (nextRank && nextEl) {
+        nextEl.textContent = `→ ${nextRank.name} (${nextRank.min}pts)`;
+        const progress = (pts - currentRank.min) / (nextRank.min - currentRank.min) * 100;
+        if (fillEl) fillEl.style.width = Math.min(100, progress) + '%';
+    } else {
+        if (nextEl) nextEl.textContent = '★ Max rank!';
+        if (fillEl) fillEl.style.width = '100%';
+    }
 }
 
 async function showLeaderboard() {
@@ -506,6 +553,10 @@ function connectOnline(onMessage, onOpen) {
                 currentUser.losses = data.losses;
                 localStorage.setItem('zensu_user', JSON.stringify(currentUser));
                 updateAccountUI();
+
+                if (data.rankUp) {
+                    setTimeout(() => showRankUpModal(data.rankUp), 1500);
+                }
             }
         } else {
             if (onMessage) onMessage(data);

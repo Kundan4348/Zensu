@@ -733,6 +733,143 @@ header h1 {
 
 .loading-text { text-align: center; color: rgba(255,255,255,0.4); font-size: 0.8rem; padding: 20px; }
 
+/* League Progress in Profile */
+.league-progress {
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    margin-bottom: 14px;
+}
+
+.league-bar-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.league-current {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.league-next {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.league-bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.league-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+    background: linear-gradient(90deg, var(--gold), #ffa040);
+}
+
+/* Rank Up Modal */
+#rankup-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 250;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.rankup-modal-content {
+    position: relative;
+    text-align: center;
+    padding: 40px 50px !important;
+    overflow: visible !important;
+    border-color: var(--gold) !important;
+}
+
+.rankup-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(219, 181, 80, 0.15), transparent 70%);
+    animation: rankGlow 2s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes rankGlow {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+    50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+}
+
+.rankup-badge {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: 900;
+    margin: 0 auto 14px;
+    animation: rankBadgePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+
+@keyframes rankBadgePop {
+    from { transform: scale(0) rotate(-20deg); }
+    to { transform: scale(1) rotate(0); }
+}
+
+.rankup-badge.bronze { background: linear-gradient(135deg, #cd7f32, #8b5a2b); color: #fff; }
+.rankup-badge.silver { background: linear-gradient(135deg, #c0c0c0, #808080); color: #1a1a2e; }
+.rankup-badge.gold { background: linear-gradient(135deg, var(--gold), #a07a30); color: #1a1a2e; }
+.rankup-badge.platinum { background: linear-gradient(135deg, #e5e4e2, #a0d2db, #e5e4e2); color: #1a1a2e; }
+
+.rankup-modal-content h2 {
+    font-size: 1.5rem;
+    color: var(--gold);
+    margin-bottom: 4px;
+}
+
+.rankup-modal-content p {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 10px;
+}
+
+.rankup-rank {
+    font-size: 1.3rem;
+    font-weight: 900;
+    text-transform: capitalize;
+    color: #fff;
+    margin-bottom: 20px;
+}
+
+.rankup-modal-content button {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, var(--gold), #a07a30);
+    border: none;
+    border-radius: 12px;
+    font-family: 'Noto Serif JP', serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.rankup-modal-content button:hover { transform: scale(1.05); }
+
 /* Tutorial */
 .tutorial-viewer {
     display: flex;
