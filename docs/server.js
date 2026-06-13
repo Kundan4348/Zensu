@@ -183,8 +183,13 @@ wss.on('connection', (ws) => {
                 ws.roomCode = code;
                 ws.playerColor = 'red';
 
+                // Mark that game has started (green will get game_start on reconnect)
+                room.started = true;
+
                 ws.send(JSON.stringify({ type: 'joined', code }));
-                room.green.send(JSON.stringify({ type: 'game_start', opponent: ws.username }));
+                if (room.green && room.green.readyState === 1) {
+                    room.green.send(JSON.stringify({ type: 'game_start', opponent: ws.username }));
+                }
                 room.red.send(JSON.stringify({ type: 'game_start', opponent: room.greenUser }));
                 console.log(`Room ${code}: ${ws.username || 'anon'} joined`);
                 break;
@@ -194,7 +199,6 @@ wss.on('connection', (ws) => {
                 const room = rooms.get(ws.roomCode);
                 if (!room) return;
 
-                // Save move history on server for state sync on reconnect
                 if (!room.moves) room.moves = [];
                 room.moves.push(data.move);
 
@@ -240,7 +244,13 @@ wss.on('connection', (ws) => {
                 const allMoves = room.moves || [];
                 const missedMoves = allMoves.slice(lastMoveIndex);
 
-                ws.send(JSON.stringify({ type: 'rejoined', code, missedMoves, totalMoves: allMoves.length }));
+                ws.send(JSON.stringify({ type: 'rejoined', code, missedMoves, totalMoves: allMoves.length, started: room.started || false }));
+
+                // If game started while player was away, tell them
+                if (room.started && missedMoves.length === 0 && lastMoveIndex === 0) {
+                    const oppUser = color === 'green' ? room.redUser : room.greenUser;
+                    ws.send(JSON.stringify({ type: 'game_start', opponent: oppUser }));
+                }
 
                 // Notify opponent
                 const opponent = color === 'green' ? room.red : room.green;

@@ -734,6 +734,11 @@ function attemptReconnect() {
             }
             onlineMoveCount = data.totalMoves || onlineMoveCount;
 
+        } else if (data.type === 'game_start') {
+            reconnectAttempts = 0;
+            hideReconnectingUI();
+            if (gameMode !== 'online') startGame('online');
+
         } else if (data.type === 'rejoin_failed') {
             hideReconnectingUI();
             showWin(onlinePlayerColor === 'green' ? 'red' : 'green', '接続切断 — Connection lost');
