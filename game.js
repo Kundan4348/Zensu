@@ -230,11 +230,33 @@ function showOnlineOptions() {
     history.pushState({ screen: 'submenu' }, '');
 
     const warning = document.getElementById('online-login-warning');
+    const guestRow = document.getElementById('guest-name-row');
     if (!currentUser) {
         warning.classList.remove('hidden');
+        guestRow.classList.remove('hidden');
     } else {
         warning.classList.add('hidden');
+        guestRow.classList.add('hidden');
     }
+}
+
+function getDisplayName() {
+    if (currentUser) return currentUser.username;
+    const guestInput = document.getElementById('guest-name-input');
+    const name = guestInput ? guestInput.value.trim() : '';
+    return name || ('Guest' + Math.floor(Math.random() * 9000 + 1000));
+}
+
+function showCoinTossResult() {
+    const overlay = document.getElementById('coin-toss-overlay');
+    const result = document.getElementById('coin-toss-result');
+    const isGreen = onlinePlayerColor === 'green';
+
+    result.style.color = isGreen ? 'var(--green-light)' : 'var(--red-light)';
+    result.textContent = isGreen ? 'You are Green — You go first!' : 'You are Red — Opponent goes first.';
+
+    overlay.classList.remove('hidden');
+    setTimeout(() => overlay.classList.add('hidden'), 2500);
 }
 
 function hideSubMenus() {
@@ -467,13 +489,6 @@ function startGame(mode, difficulty) {
     if (mode === 'pvp') redBar.classList.add('flipped');
     else redBar.classList.remove('flipped');
 
-    // Flip board for red player in online mode
-    const boardEl = document.getElementById('board');
-    if (mode === 'online' && onlinePlayerColor === 'red') {
-        boardEl.classList.add('board-flipped');
-    } else {
-        boardEl.classList.remove('board-flipped');
-    }
 
     resetGame();
 }
@@ -505,6 +520,7 @@ function createRoom() {
         } else if (data.type === 'game_start') {
             if (data.yourColor) onlinePlayerColor = data.yourColor;
             startGame('online');
+            showCoinTossResult();
         }
     }, () => {
         onlineSocket.send(JSON.stringify({ type: 'create_room' }));
@@ -545,6 +561,7 @@ function joinRoom() {
         } else if (data.type === 'game_start') {
             if (data.yourColor) onlinePlayerColor = data.yourColor;
             startGame('online');
+            showCoinTossResult();
         } else if (data.type === 'error') {
             statusText.textContent = data.message || 'Failed to join room';
         }
@@ -564,9 +581,8 @@ function connectOnline(onMessage, onOpen) {
     }
 
     onlineSocket.onopen = () => {
-        if (currentUser) {
-            onlineSocket.send(JSON.stringify({ type: 'auth', username: currentUser.username }));
-        }
+        const displayName = getDisplayName();
+        onlineSocket.send(JSON.stringify({ type: 'auth', username: displayName }));
         if (onOpen) onOpen();
     };
 
@@ -937,15 +953,23 @@ function initBoard() {
     }
 }
 
+function isBoardFlipped() {
+    return gameMode === 'online' && onlinePlayerColor === 'red';
+}
+
 function renderBoard() {
     const boardEl = document.getElementById('board');
     boardEl.innerHTML = '';
+    const flipped = isBoardFlipped();
 
-    for (let row = 0; row < ROWS; row++) {
-        for (let col = 0; col < COLS; col++) {
+    for (let displayRow = 0; displayRow < ROWS; displayRow++) {
+        for (let displayCol = 0; displayCol < COLS; displayCol++) {
+            const row = flipped ? (ROWS - 1 - displayRow) : displayRow;
+            const col = flipped ? (COLS - 1 - displayCol) : displayCol;
+
             const cell = document.createElement('div');
             cell.className = 'cell';
-            cell.classList.add((row + col) % 2 === 0 ? 'cell-light' : 'cell-dark');
+            cell.classList.add((displayRow + displayCol) % 2 === 0 ? 'cell-light' : 'cell-dark');
             cell.dataset.row = row;
             cell.dataset.col = col;
 

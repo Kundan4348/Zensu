@@ -206,7 +206,10 @@
                 <h3>オンライン — Online</h3>
                 <div id="online-login-warning" class="online-warning hidden">
                     <span class="warning-icon">⚠</span>
-                    <p>ログインしていません — You are not logged in. Points earned in this match will be lost. <a href="#" onclick="event.preventDefault(); hideSubMenus(); showAccountPanel();">Login now</a></p>
+                    <p>ログインしていません — Points won't count. <a href="#" onclick="event.preventDefault(); hideSubMenus(); showAccountPanel();">Login</a></p>
+                </div>
+                <div id="guest-name-row" class="hidden">
+                    <input type="text" id="guest-name-input" placeholder="Your display name" maxlength="15" autocomplete="off">
                 </div>
                 <div class="online-actions">
                     <button class="online-btn" onclick="createRoom()">
@@ -452,6 +455,14 @@
                 </ul>
 
                 <h3>先手 (Green) moves first.</h3>
+            </div>
+        </div>
+
+        <!-- Coin Toss Result -->
+        <div id="coin-toss-overlay" class="hidden">
+            <div class="coin-toss-content">
+                <p class="coin-toss-label">硬貨投げ — Coin Toss</p>
+                <div class="coin-toss-result" id="coin-toss-result">You are Green — First move!</div>
             </div>
         </div>
 
