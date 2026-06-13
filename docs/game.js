@@ -600,11 +600,17 @@ function connectOnline(onMessage, onOpen) {
     };
 
     onlineSocket.onerror = () => {
-        document.getElementById('online-status-text').textContent = 'Cannot connect. Is the server running?';
+        const statusEl = document.getElementById('online-status-text');
+        if (statusEl && !document.getElementById('game-screen').classList.contains('hidden') === false) {
+            statusEl.textContent = 'Cannot connect. Is the server running?';
+        }
     };
 
     onlineSocket.onclose = () => {
-        // Don't clear state — allow reconnect
+        // Auto-reconnect if we're in an active online game
+        if (gameMode === 'online' && onlineRoomCode && !gameOver) {
+            reconnectOnline();
+        }
     };
 }
 
@@ -680,7 +686,7 @@ function reconnectLobby() {
 }
 
 function reconnectOnline() {
-    if (reconnectTimer) return; // Already trying
+    if (reconnectTimer || reconnectAttempts > 0) return; // Already trying
     reconnectAttempts = 0;
     attemptReconnect();
 }
@@ -983,6 +989,13 @@ function handleCellClick(row, col) {
 
     // In online mode, only allow moves for your color
     if (gameMode === 'online' && currentPlayer !== onlinePlayerColor) return;
+
+    // Block moves if disconnected in online mode
+    if (gameMode === 'online' && (!onlineSocket || onlineSocket.readyState !== WebSocket.OPEN)) {
+        const hint = document.getElementById('hint-text');
+        if (hint) hint.textContent = '再接続中... — Reconnecting...';
+        return;
+    }
 
     // In CPU mode, block during red's turn
     if (gameMode === 'cpu' && currentPlayer === 'red') return;
