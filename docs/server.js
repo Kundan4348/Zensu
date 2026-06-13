@@ -250,6 +250,31 @@ wss.on('connection', (ws) => {
                 break;
             }
 
+            case 'emote': {
+                const room = rooms.get(ws.roomCode);
+                if (!room) return;
+                const opp = ws.playerColor === 'green' ? room.red : room.green;
+                if (opp && opp.readyState === 1) {
+                    opp.send(JSON.stringify({ type: 'opponent_emote', emoji: data.emoji }));
+                }
+                break;
+            }
+
+            case 'find_match': {
+                const points = data.points || 0;
+                ws.matchPoints = points;
+                ws.matchTime = Date.now();
+                matchQueue.push(ws);
+                ws.send(JSON.stringify({ type: 'matchmaking_status', message: 'Searching for opponent...' }));
+                tryMatchPlayers();
+                break;
+            }
+
+            case 'cancel_match': {
+                matchQueue = matchQueue.filter(p => p !== ws);
+                break;
+            }
+
             case 'rematch': {
                 const room = rooms.get(ws.roomCode);
                 if (room) { room.scored = false; room.moves = []; }
@@ -354,6 +379,9 @@ wss.on('connection', (ws) => {
     });
 
     ws.on('close', () => {
+        // Remove from matchmaking queue
+        matchQueue = matchQueue.filter(p => p !== ws);
+
         if (ws.roomCode) {
             const room = rooms.get(ws.roomCode);
             if (!room) return;
@@ -388,3 +416,74 @@ setInterval(() => {
         ws.ping();
     });
 }, 30000);
+
+// ===== ELO MATCHMAKING =====
+let matchQueue = [];
+
+function tryMatchPlayers() {
+    // Remove disconnected players from queue
+    matchQueue = matchQueue.filter(ws => ws.readyState === 1);
+
+    if (matchQueue.length < 2) return;
+
+    for (let i = 0; i < matchQueue.length; i++) {
+        const p1 = matchQueue[i];
+        const waitTime = Date.now() - p1.matchTime;
+
+        // Widen range over time: 0-10s: ±50, 10-20s: ±100, 20-30s: ±200, 30s+: anyone
+        let range = 50;
+        if (waitTime > 30000) range = Infinity;
+        else if (waitTime > 20000) range = 200;
+        else if (waitTime > 10000) range = 100;
+
+        for (let j = i + 1; j < matchQueue.length; j++) {
+            const p2 = matchQueue[j];
+            const diff = Math.abs((p1.matchPoints || 0) - (p2.matchPoints || 0));
+
+            if (diff <= range) {
+                // Match found — remove from queue
+                matchQueue.splice(j, 1);
+                matchQueue.splice(i, 1);
+                createMatchRoom(p1, p2);
+                return;
+            }
+        }
+
+        // Send status update
+        if (waitTime > 20000) {
+            p1.send(JSON.stringify({ type: 'matchmaking_status', message: 'Searching wider... (any skill)' }));
+        } else if (waitTime > 10000) {
+            p1.send(JSON.stringify({ type: 'matchmaking_status', message: 'Widening search...' }));
+        }
+    }
+}
+
+function createMatchRoom(p1, p2) {
+    let code = generateCode();
+    while (rooms.has(code)) code = generateCode();
+
+    // Random color assignment
+    const p1Green = Math.random() < 0.5;
+    const greenWs = p1Green ? p1 : p2;
+    const redWs = p1Green ? p2 : p1;
+
+    rooms.set(code, {
+        green: greenWs, red: redWs,
+        greenUser: greenWs.username, redUser: redWs.username,
+        scored: false, started: true, moves: []
+    });
+
+    greenWs.roomCode = code; greenWs.playerColor = 'green';
+    redWs.roomCode = code; redWs.playerColor = 'red';
+
+    greenWs.send(JSON.stringify({ type: 'match_found', code }));
+    redWs.send(JSON.stringify({ type: 'match_found', code }));
+
+    greenWs.send(JSON.stringify({ type: 'game_start', opponent: redWs.username, yourColor: 'green' }));
+    redWs.send(JSON.stringify({ type: 'game_start', opponent: greenWs.username, yourColor: 'red' }));
+
+    console.log(`Match: ${greenWs.username} vs ${redWs.username} (Room ${code})`);
+}
+
+// Periodically retry matching for players waiting in queue
+setInterval(tryMatchPlayers, 3000);

@@ -490,6 +490,11 @@ function startGame(mode, difficulty) {
     if (mode === 'pvp') redBar.classList.add('flipped');
     else redBar.classList.remove('flipped');
 
+    // Show emote bar in online mode
+    const emoteBar = document.getElementById('emote-bar');
+    if (mode === 'online') emoteBar.classList.remove('hidden');
+    else emoteBar.classList.add('hidden');
+
     updatePlayerNames();
     resetGame();
 }
@@ -606,6 +611,8 @@ function connectOnline(onMessage, onOpen) {
             if (!gameOver) {
                 showWin(onlinePlayerColor, 'Opponent disconnected — 相手退出');
             }
+        } else if (data.type === 'opponent_emote') {
+            showEmotePopup(data.emoji);
         } else if (data.type === 'opponent_paused') {
             const hint = document.getElementById('hint-text');
             if (hint) hint.textContent = '相手が一時停止 — Opponent paused';
@@ -791,6 +798,8 @@ function attemptReconnect() {
             }
         } else if (data.type === 'opponent_disconnected') {
             if (!gameOver) showWin(onlinePlayerColor, 'Opponent disconnected — 相手退出');
+        } else if (data.type === 'opponent_emote') {
+            showEmotePopup(data.emoji);
         } else if (data.type === 'opponent_paused') {
             const hint = document.getElementById('hint-text');
             if (hint) hint.textContent = '相手が一時停止 — Opponent paused';
@@ -849,6 +858,50 @@ function disconnectOnline() {
     }
     onlineRoomCode = null;
     onlinePlayerColor = null;
+}
+
+// ===== EMOTES =====
+function sendEmote(emoji) {
+    if (gameMode !== 'online' || !onlineSocket || onlineSocket.readyState !== WebSocket.OPEN) return;
+    onlineSocket.send(JSON.stringify({ type: 'emote', emoji }));
+    showEmotePopup(emoji);
+}
+
+function showEmotePopup(emoji) {
+    const popup = document.getElementById('emote-popup');
+    popup.textContent = emoji;
+    popup.classList.remove('hidden');
+    popup.style.animation = 'none';
+    popup.offsetHeight;
+    popup.style.animation = '';
+    setTimeout(() => popup.classList.add('hidden'), 2000);
+}
+
+// ===== ELO MATCHMAKING =====
+function findMatch() {
+    const status = document.getElementById('online-status');
+    const statusText = document.getElementById('online-status-text');
+    status.classList.remove('hidden');
+    statusText.textContent = 'Searching for opponent...';
+
+    connectOnline((data) => {
+        if (data.type === 'match_found') {
+            onlineRoomCode = data.code;
+            statusText.textContent = 'Opponent found! Starting...';
+        } else if (data.type === 'game_start') {
+            if (data.yourColor) onlinePlayerColor = data.yourColor;
+            if (data.opponent) onlineOpponentName = data.opponent;
+            startGame('online');
+            showCoinTossResult();
+        } else if (data.type === 'matchmaking_status') {
+            statusText.textContent = data.message;
+        } else if (data.type === 'error') {
+            statusText.textContent = data.message || 'Matchmaking failed';
+        }
+    }, () => {
+        const points = currentUser ? currentUser.points : 0;
+        onlineSocket.send(JSON.stringify({ type: 'find_match', points }));
+    });
 }
 
 function sendMoveOnline(fromRow, fromCol, move) {

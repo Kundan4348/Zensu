@@ -212,6 +212,11 @@
                     <input type="text" id="guest-name-input" placeholder="Your display name" maxlength="15" autocomplete="off">
                 </div>
                 <div class="online-actions">
+                    <button class="online-btn matchmake-btn" onclick="findMatch()">
+                        <span class="menu-btn-jp">🎯 対戦相手を探す</span>
+                        <span class="menu-btn-en">Find Opponent (ELO Match)</span>
+                    </button>
+                    <div class="online-divider"><span>or play with a friend</span></div>
                     <button class="online-btn" onclick="createRoom()">
                         <span class="menu-btn-jp">部屋作成</span>
                         <span class="menu-btn-en">Create Room</span>
@@ -399,6 +404,22 @@
                     <small>Rules</small>
                 </button>
             </div>
+
+            <!-- Emote bar (online games only) -->
+            <div id="emote-bar" class="hidden">
+                <button class="emote-btn" onclick="sendEmote('👏')">👏</button>
+                <button class="emote-btn" onclick="sendEmote('🔥')">🔥</button>
+                <button class="emote-btn" onclick="sendEmote('😤')">😤</button>
+                <button class="emote-btn" onclick="sendEmote('🤔')">🤔</button>
+                <button class="emote-btn" onclick="sendEmote('😅')">😅</button>
+                <button class="emote-btn" onclick="sendEmote('🙏')">🙏</button>
+                <button class="emote-btn" onclick="sendEmote('😎')">😎</button>
+                <button class="emote-btn" onclick="sendEmote('💀')">💀</button>
+                <button class="emote-btn" onclick="sendEmote('⏰')">⏰</button>
+            </div>
+
+            <!-- Emote display (floating popup) -->
+            <div id="emote-popup" class="hidden"></div>
 
             <!-- Replay controls (shown during replay) -->
             <div id="replay-bar" class="hidden">
