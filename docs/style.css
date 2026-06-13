@@ -453,6 +453,29 @@ header h1 {
     color: rgba(255, 255, 255, 0.7);
 }
 
+.room-code-display {
+    font-size: 1.3rem;
+    letter-spacing: 4px;
+    color: var(--gold);
+}
+
+.copy-btn {
+    background: none;
+    border: 1px solid rgba(219, 181, 80, 0.3);
+    border-radius: 6px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    vertical-align: middle;
+    margin-left: 6px;
+    transition: all 0.2s;
+}
+
+.copy-btn:hover {
+    background: rgba(219, 181, 80, 0.1);
+    border-color: rgba(219, 181, 80, 0.5);
+}
+
 .online-warning {
     display: flex;
     align-items: flex-start;

@@ -492,12 +492,30 @@ function createRoom() {
         if (data.type === 'room_created') {
             onlineRoomCode = data.code;
             onlinePlayerColor = 'green';
-            statusText.textContent = `Room: ${data.code} — Waiting for opponent...`;
+            statusText.innerHTML = `Room: <strong class="room-code-display">${data.code}</strong> <button class="copy-btn" onclick="copyRoomCode()">📋</button><br><small>Waiting for opponent...</small>`;
         } else if (data.type === 'game_start') {
             startGame('online');
         }
     }, () => {
         onlineSocket.send(JSON.stringify({ type: 'create_room' }));
+    });
+}
+
+function copyRoomCode() {
+    if (!onlineRoomCode) return;
+    navigator.clipboard.writeText(onlineRoomCode).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        if (btn) { btn.textContent = '✓'; setTimeout(() => btn.textContent = '📋', 1500); }
+    }).catch(() => {
+        // Fallback for older browsers
+        const ta = document.createElement('textarea');
+        ta.value = onlineRoomCode;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        const btn = document.querySelector('.copy-btn');
+        if (btn) { btn.textContent = '✓'; setTimeout(() => btn.textContent = '📋', 1500); }
     });
 }
 
@@ -599,12 +617,67 @@ let reconnectTimer = null;
 function incrementMoveCount() { onlineMoveCount++; }
 
 document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && gameMode === 'online' && onlineRoomCode && !gameOver) {
+    if (document.visibilityState !== 'visible') return;
+
+    // Reconnect during active game
+    if (gameMode === 'online' && onlineRoomCode && !gameOver) {
         if (!onlineSocket || onlineSocket.readyState !== WebSocket.OPEN) {
             reconnectOnline();
         }
+        return;
+    }
+
+    // Reconnect while waiting in lobby (room created, waiting for opponent)
+    if (onlineRoomCode && onlinePlayerColor === 'green' && (!onlineSocket || onlineSocket.readyState !== WebSocket.OPEN)) {
+        reconnectLobby();
     }
 });
+
+function reconnectLobby() {
+    const statusText = document.getElementById('online-status-text');
+    if (statusText) statusText.textContent = 'Reconnecting to room...';
+
+    try {
+        onlineSocket = new WebSocket(WS_URL);
+    } catch (e) {
+        if (statusText) statusText.textContent = 'Cannot connect. Is the server running?';
+        return;
+    }
+
+    onlineSocket.onopen = () => {
+        if (currentUser) {
+            onlineSocket.send(JSON.stringify({ type: 'auth', username: currentUser.username }));
+        }
+        // Rejoin the room we created
+        onlineSocket.send(JSON.stringify({
+            type: 'rejoin',
+            code: onlineRoomCode,
+            color: 'green',
+            username: currentUser ? currentUser.username : null,
+            lastMoveIndex: 0
+        }));
+    };
+
+    onlineSocket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'rejoined') {
+            if (statusText) statusText.innerHTML = `Room: <strong class="room-code-display">${onlineRoomCode}</strong> <button class="copy-btn" onclick="copyRoomCode()">📋</button><br><small>Waiting for opponent...</small>`;
+        } else if (data.type === 'rejoin_failed') {
+            if (statusText) statusText.textContent = 'Room expired. Create a new one.';
+            onlineRoomCode = null;
+        } else if (data.type === 'game_start') {
+            startGame('online');
+        } else if (data.type === 'opponent_move') {
+            executeMove(data.move.fromRow, data.move.fromCol, data.move.to, true);
+            onlineMoveCount++;
+        }
+    };
+
+    onlineSocket.onerror = () => {
+        if (statusText) statusText.textContent = 'Cannot connect. Try again.';
+    };
+    onlineSocket.onclose = () => {};
+}
 
 function reconnectOnline() {
     if (reconnectTimer) return; // Already trying
