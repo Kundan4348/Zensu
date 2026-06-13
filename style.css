@@ -1847,76 +1847,151 @@ header h1 {
 
 /* Themes */
 .theme-section-label {
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.4);
-    margin-bottom: 6px;
+    font-size: 0.75rem;
+    color: var(--gold);
+    margin-bottom: 8px;
+    font-weight: 700;
+    letter-spacing: 1px;
 }
 
 .theme-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-bottom: 14px;
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
 .theme-card {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    padding: 8px;
+    gap: 8px;
+    padding: 10px 8px;
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
+    border: 1.5px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     color: #e8e0d4;
     font-size: 0.6rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.theme-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.06), transparent 60%);
+    pointer-events: none;
 }
 
 .theme-card:hover {
-    border-color: rgba(219, 181, 80, 0.3);
+    transform: translateY(-3px) scale(1.03);
+    border-color: rgba(219, 181, 80, 0.4);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3), 0 0 15px rgba(219, 181, 80, 0.08);
+}
+
+.theme-card:active {
+    transform: translateY(0) scale(0.97);
 }
 
 .theme-card.active {
-    border-color: rgba(219, 181, 80, 0.6);
-    background: rgba(219, 181, 80, 0.08);
+    border-color: rgba(219, 181, 80, 0.7);
+    background: rgba(219, 181, 80, 0.06);
+    box-shadow: 0 4px 20px rgba(219, 181, 80, 0.12), inset 0 0 20px rgba(219, 181, 80, 0.04);
+}
+
+.theme-card.active::after {
+    content: '✓';
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 0.6rem;
+    color: var(--gold);
+    background: rgba(0, 0, 0, 0.5);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .theme-preview {
     width: 100%;
     aspect-ratio: 1;
-    border-radius: 6px;
+    border-radius: 10px;
     overflow: hidden;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+    transform: perspective(200px) rotateX(5deg);
+    transition: transform 0.3s ease;
 }
 
-/* Board theme previews */
+.theme-card:hover .theme-preview {
+    transform: perspective(200px) rotateX(0deg);
+}
+
+/* Board theme previews — 3D mini boards */
 .board-preview-classic {
-    background: linear-gradient(135deg, #f5e1b5 25%, #d4a853 25%, #d4a853 50%, #f5e1b5 50%, #f5e1b5 75%, #d4a853 75%);
+    background:
+        linear-gradient(135deg, #f5e1b5 25%, transparent 25%) -10px 0,
+        linear-gradient(225deg, #f5e1b5 25%, transparent 25%) -10px 0,
+        linear-gradient(315deg, #f5e1b5 25%, transparent 25%),
+        linear-gradient(45deg, #f5e1b5 25%, transparent 25%);
     background-size: 20px 20px;
+    background-color: #d4a853;
+    border: 2px solid rgba(180, 140, 60, 0.4);
 }
 
 .board-preview-night {
-    background: linear-gradient(135deg, #2a2a4a 25%, #1a1a35 25%, #1a1a35 50%, #2a2a4a 50%, #2a2a4a 75%, #1a1a35 75%);
+    background:
+        linear-gradient(135deg, #3a3a5e 25%, transparent 25%) -10px 0,
+        linear-gradient(225deg, #3a3a5e 25%, transparent 25%) -10px 0,
+        linear-gradient(315deg, #3a3a5e 25%, transparent 25%),
+        linear-gradient(45deg, #3a3a5e 25%, transparent 25%);
     background-size: 20px 20px;
+    background-color: #1a1a35;
+    border: 2px solid rgba(80, 80, 150, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(80, 80, 180, 0.1);
 }
 
 .board-preview-sakura {
-    background: linear-gradient(135deg, #fff0f5 25%, #ffd6e0 25%, #ffd6e0 50%, #fff0f5 50%, #fff0f5 75%, #ffd6e0 75%);
+    background:
+        linear-gradient(135deg, #fff5f8 25%, transparent 25%) -10px 0,
+        linear-gradient(225deg, #fff5f8 25%, transparent 25%) -10px 0,
+        linear-gradient(315deg, #fff5f8 25%, transparent 25%),
+        linear-gradient(45deg, #fff5f8 25%, transparent 25%);
     background-size: 20px 20px;
+    background-color: #ffd6e0;
+    border: 2px solid rgba(255, 150, 180, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 0 15px rgba(255, 180, 200, 0.15);
 }
 
-/* Piece theme previews */
+/* Piece theme previews — 3D diagonal split with piece shapes */
 .piece-preview-jade {
-    background: linear-gradient(135deg, #5ea87a 50%, #c55568 50%);
+    background: linear-gradient(160deg, #256842 0%, #5ea87a 45%, #5ea87a 50%, #c55568 50%, #c55568 55%, #6e1830 100%);
+    border: 2px solid rgba(109, 184, 138, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.15);
 }
 
 .piece-preview-ocean {
-    background: linear-gradient(135deg, #2563eb 50%, #ea580c 50%);
+    background: linear-gradient(160deg, #1d4ed8 0%, #60a5fa 45%, #60a5fa 50%, #fb923c 50%, #fb923c 55%, #9a3412 100%);
+    border: 2px solid rgba(96, 165, 250, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.15);
 }
 
 .piece-preview-shadow {
-    background: linear-gradient(135deg, #1a1a2e 50%, #dbb550 50%);
+    background: linear-gradient(160deg, #1a1a2e 0%, #3a3a5e 45%, #3a3a5e 50%, #dbb550 50%, #dbb550 55%, #705518 100%);
+    border: 2px solid rgba(100, 100, 140, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.theme-card span {
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
 /* ===== BOARD THEMES ===== */

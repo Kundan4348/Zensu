@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zensu-v25';
+const CACHE_NAME = 'zensu-v26';
 const ASSETS = [
   '/',
   '/index.html',
