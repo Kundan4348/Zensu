@@ -1639,6 +1639,20 @@ header h1 {
     clip-path: polygon(6% 0%, 94% 0%, 94% 82%, 50% 100%, 6% 82%);
 }
 
+/* Flipped board: swap piece directions */
+.piece.green.piece-flipped {
+    clip-path: polygon(6% 0%, 94% 0%, 94% 82%, 50% 100%, 6% 82%);
+}
+.piece.green.piece-flipped::before {
+    clip-path: polygon(6% 0%, 94% 0%, 94% 82%, 50% 100%, 6% 82%);
+}
+.piece.red.piece-flipped {
+    clip-path: polygon(50% 0%, 94% 18%, 94% 100%, 6% 100%, 6% 18%);
+}
+.piece.red.piece-flipped::before {
+    clip-path: polygon(50% 0%, 94% 18%, 94% 100%, 6% 100%, 6% 18%);
+}
+
 .piece.red.piece-selected {
     transform: translateY(-3px) scale(1.06);
     background: linear-gradient(165deg, #f07888 0%, #d05068 30%, #a83850 60%, #7a2838 100%);

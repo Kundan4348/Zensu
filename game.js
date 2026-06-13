@@ -1013,6 +1013,9 @@ function createPieceElement(piece, row, col) {
     if (selectedPiece && selectedPiece.row === row && selectedPiece.col === col) {
         el.classList.add('piece-selected');
     }
+    if (isBoardFlipped()) {
+        el.classList.add('piece-flipped');
+    }
 
     const moves = getMoveDistances(piece);
     el.innerHTML = `
