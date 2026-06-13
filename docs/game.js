@@ -246,6 +246,7 @@ function hideSubMenus() {
     document.getElementById('account-panel').classList.add('hidden');
     document.getElementById('leaderboard-panel').classList.add('hidden');
     document.getElementById('tutorial-panel').classList.add('hidden');
+    document.getElementById('themes-panel').classList.add('hidden');
 }
 
 // ===== ACCOUNT SYSTEM =====
@@ -568,6 +569,14 @@ function connectOnline(onMessage, onOpen) {
             const move = data.move;
             executeMove(move.fromRow, move.fromCol, move.to, true);
             onlineMoveCount++;
+        } else if (data.type === 'opponent_undo') {
+            if (moveHistory.length > 0) {
+                undoSingleMove();
+                onlineMoveCount = Math.max(0, onlineMoveCount - 1);
+                selectedPiece = null; validMoves = [];
+                lastMove = moveHistory.length > 0 ? { fromRow: moveHistory[moveHistory.length-1].fromRow, fromCol: moveHistory[moveHistory.length-1].fromCol, toRow: moveHistory[moveHistory.length-1].toRow, toCol: moveHistory[moveHistory.length-1].toCol } : null;
+                renderBoard(); renderCapturedTrays(); updateTurnIndicator(); updateHint(); startTurnTimer();
+            }
         } else if (data.type === 'opponent_disconnected') {
             if (!gameOver) {
                 showWin(onlinePlayerColor, 'Opponent disconnected — 相手退出');
@@ -745,6 +754,14 @@ function attemptReconnect() {
         } else if (data.type === 'opponent_move') {
             executeMove(data.move.fromRow, data.move.fromCol, data.move.to, true);
             onlineMoveCount++;
+        } else if (data.type === 'opponent_undo') {
+            if (moveHistory.length > 0) {
+                undoSingleMove();
+                onlineMoveCount = Math.max(0, onlineMoveCount - 1);
+                selectedPiece = null; validMoves = [];
+                lastMove = moveHistory.length > 0 ? { fromRow: moveHistory[moveHistory.length-1].fromRow, fromCol: moveHistory[moveHistory.length-1].fromCol, toRow: moveHistory[moveHistory.length-1].toRow, toCol: moveHistory[moveHistory.length-1].toCol } : null;
+                renderBoard(); renderCapturedTrays(); updateTurnIndicator(); updateHint(); startTurnTimer();
+            }
         } else if (data.type === 'opponent_disconnected') {
             if (!gameOver) showWin(onlinePlayerColor, 'Opponent disconnected — 相手退出');
         } else if (data.type === 'opponent_paused') {
@@ -1109,8 +1126,8 @@ function executeMove(fromRow, fromCol, move, isRemote = false) {
 function undoMove() {
     if (gameOver || moveHistory.length === 0) return;
 
-    // In CPU mode, undo both CPU and player move
     if (gameMode === 'cpu') {
+        // Undo both CPU and player move
         if (moveHistory.length >= 2 && moveHistory[moveHistory.length - 1].player === 'red') {
             undoSingleMove();
             undoSingleMove();
@@ -1118,17 +1135,30 @@ function undoMove() {
             undoSingleMove();
         }
     } else if (gameMode === 'online') {
-        return; // No undo in online mode
+        // Only undo if the last move was yours
+        const last = moveHistory[moveHistory.length - 1];
+        if (last && last.player === onlinePlayerColor) {
+            undoSingleMove();
+            onlineMoveCount = Math.max(0, onlineMoveCount - 1);
+            // Tell opponent to undo
+            if (onlineSocket && onlineSocket.readyState === WebSocket.OPEN) {
+                onlineSocket.send(JSON.stringify({ type: 'undo' }));
+            }
+        } else {
+            return;
+        }
     } else {
         undoSingleMove();
     }
 
     selectedPiece = null;
     validMoves = [];
+    lastMove = moveHistory.length > 0 ? { fromRow: moveHistory[moveHistory.length-1].fromRow, fromCol: moveHistory[moveHistory.length-1].fromCol, toRow: moveHistory[moveHistory.length-1].toRow, toCol: moveHistory[moveHistory.length-1].toCol } : null;
     renderBoard();
     renderCapturedTrays();
     updateTurnIndicator();
     updateHint();
+    startTurnTimer();
 }
 
 function undoSingleMove() {
@@ -1155,8 +1185,8 @@ function animatePlacedPiece(row, col) {
     const idx = row * COLS + col;
     const pieceEl = cells[idx]?.querySelector('.piece');
     if (pieceEl) {
-        pieceEl.classList.add('piece-placed');
-        setTimeout(() => pieceEl.classList.remove('piece-placed'), 350);
+        pieceEl.classList.add('piece-sliding');
+        setTimeout(() => pieceEl.classList.remove('piece-sliding'), 300);
     }
 }
 
@@ -1395,6 +1425,47 @@ function toggleRules() {
     document.getElementById('rules-panel').classList.toggle('hidden');
 }
 
+// ===== THEMES =====
+function showThemes() {
+    document.querySelector('.menu-container').classList.add('hidden');
+    document.getElementById('themes-panel').classList.remove('hidden');
+    history.pushState({ screen: 'submenu' }, '');
+}
+
+function selectBoardTheme(el) {
+    document.querySelectorAll('[data-board]').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    const theme = el.dataset.board;
+
+    document.body.classList.remove('board-classic', 'board-night', 'board-sakura');
+    if (theme !== 'classic') document.body.classList.add('board-' + theme);
+    localStorage.setItem('zensu_board_theme', theme);
+}
+
+function selectPieceTheme(el) {
+    document.querySelectorAll('[data-piece]').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    const theme = el.dataset.piece;
+
+    document.body.classList.remove('piece-jade', 'piece-ocean', 'piece-shadow');
+    if (theme !== 'jade') document.body.classList.add('piece-' + theme);
+    localStorage.setItem('zensu_piece_theme', theme);
+}
+
+function loadThemes() {
+    const boardTheme = localStorage.getItem('zensu_board_theme') || 'classic';
+    const pieceTheme = localStorage.getItem('zensu_piece_theme') || 'jade';
+
+    if (boardTheme !== 'classic') document.body.classList.add('board-' + boardTheme);
+    if (pieceTheme !== 'jade') document.body.classList.add('piece-' + pieceTheme);
+
+    const boardBtn = document.querySelector(`[data-board="${boardTheme}"]`);
+    if (boardBtn) { document.querySelectorAll('[data-board]').forEach(b => b.classList.remove('active')); boardBtn.classList.add('active'); }
+
+    const pieceBtn = document.querySelector(`[data-piece="${pieceTheme}"]`);
+    if (pieceBtn) { document.querySelectorAll('[data-piece]').forEach(b => b.classList.remove('active')); pieceBtn.classList.add('active'); }
+}
+
 // ===== GAME REPLAY =====
 let replayMoves = [];
 let replayIndex = 0;
@@ -1575,7 +1646,8 @@ window.addEventListener('popstate', function(e) {
         || !document.getElementById('online-options').classList.contains('hidden')
         || !document.getElementById('account-panel').classList.contains('hidden')
         || !document.getElementById('leaderboard-panel').classList.contains('hidden')
-        || !document.getElementById('tutorial-panel').classList.contains('hidden');
+        || !document.getElementById('tutorial-panel').classList.contains('hidden')
+        || !document.getElementById('themes-panel').classList.contains('hidden');
 
     if (subMenuOpen && !gameVisible) {
         hideSubMenus();
@@ -1610,4 +1682,5 @@ function cancelLeave() {
 initSakura();
 pushMenuState();
 loadSavedSession();
+loadThemes();
 

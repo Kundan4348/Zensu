@@ -209,6 +209,17 @@ wss.on('connection', (ws) => {
                 break;
             }
 
+            case 'undo': {
+                const room = rooms.get(ws.roomCode);
+                if (!room) return;
+                if (room.moves && room.moves.length > 0) room.moves.pop();
+                const opponent = ws.playerColor === 'green' ? room.red : room.green;
+                if (opponent && opponent.readyState === 1) {
+                    opponent.send(JSON.stringify({ type: 'opponent_undo' }));
+                }
+                break;
+            }
+
             case 'rematch': {
                 const room = rooms.get(ws.roomCode);
                 if (room) { room.scored = false; room.moves = []; }

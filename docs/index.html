@@ -60,6 +60,14 @@
                     </div>
                 </button>
 
+                <button class="menu-btn" onclick="showThemes()">
+                    <div class="menu-btn-icon">彩</div>
+                    <div class="menu-btn-text">
+                        <span class="menu-btn-jp">外観</span>
+                        <span class="menu-btn-en">Themes</span>
+                    </div>
+                </button>
+
                 <button class="menu-btn" onclick="showTutorial()">
                     <div class="menu-btn-icon">学</div>
                     <div class="menu-btn-text">
@@ -67,6 +75,45 @@
                         <span class="menu-btn-en">How to Play</span>
                     </div>
                 </button>
+            </div>
+
+            <!-- Themes Panel -->
+            <div id="themes-panel" class="sub-menu hidden">
+                <h3>外観 — Themes</h3>
+
+                <p class="theme-section-label">盤面 — Board</p>
+                <div class="theme-grid">
+                    <button class="theme-card active" data-board="classic" onclick="selectBoardTheme(this)">
+                        <div class="theme-preview board-preview-classic"></div>
+                        <span>Classic Wood</span>
+                    </button>
+                    <button class="theme-card" data-board="night" onclick="selectBoardTheme(this)">
+                        <div class="theme-preview board-preview-night"></div>
+                        <span>Night Ink</span>
+                    </button>
+                    <button class="theme-card" data-board="sakura" onclick="selectBoardTheme(this)">
+                        <div class="theme-preview board-preview-sakura"></div>
+                        <span>Sakura</span>
+                    </button>
+                </div>
+
+                <p class="theme-section-label">駒 — Pieces</p>
+                <div class="theme-grid">
+                    <button class="theme-card active" data-piece="jade" onclick="selectPieceTheme(this)">
+                        <div class="theme-preview piece-preview-jade"></div>
+                        <span>Jade & Rose</span>
+                    </button>
+                    <button class="theme-card" data-piece="ocean" onclick="selectPieceTheme(this)">
+                        <div class="theme-preview piece-preview-ocean"></div>
+                        <span>Ocean & Flame</span>
+                    </button>
+                    <button class="theme-card" data-piece="shadow" onclick="selectPieceTheme(this)">
+                        <div class="theme-preview piece-preview-shadow"></div>
+                        <span>Shadow & Gold</span>
+                    </button>
+                </div>
+
+                <button class="back-btn" onclick="hideSubMenus()">← 戻る Back</button>
             </div>
 
             <!-- Tutorial Panel -->
