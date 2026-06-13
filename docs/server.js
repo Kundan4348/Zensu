@@ -3,23 +3,26 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
+const { MongoClient } = require('mongodb');
 
 const PORT = process.env.PORT || 8080;
-const DB_FILE = path.join(__dirname, 'players.json');
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://Zensu:Zensu@cluster0.aeoogir.mongodb.net/zensu?retryWrites=true&w=majority';
 
-// ===== Player Database =====
-let players = {};
+// ===== MongoDB Player Database =====
+let db = null;
+let playersCol = null;
 
-function loadDB() {
+async function connectDB() {
     try {
-        if (fs.existsSync(DB_FILE)) {
-            players = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-        }
-    } catch (e) { players = {}; }
-}
-
-function saveDB() {
-    fs.writeFileSync(DB_FILE, JSON.stringify(players, null, 2));
+        const client = new MongoClient(MONGO_URI);
+        await client.connect();
+        db = client.db('zensu');
+        playersCol = db.collection('players');
+        await playersCol.createIndex({ username: 1 }, { unique: true });
+        console.log('  Connected to MongoDB');
+    } catch (e) {
+        console.error('  MongoDB connection failed:', e.message);
+    }
 }
 
 function hashPassword(pass) {
@@ -33,20 +36,20 @@ function getRank(points) {
     return 'bronze';
 }
 
-function getLeaderboard() {
-    return Object.entries(players)
-        .map(([username, data]) => ({
-            username,
-            points: data.points,
-            rank: getRank(data.points),
-            wins: data.wins,
-            losses: data.losses
-        }))
-        .sort((a, b) => b.points - a.points)
-        .slice(0, 50);
+async function getLeaderboard() {
+    if (!playersCol) return [];
+    const players = await playersCol.find({}, { projection: { passwordHash: 0 } })
+        .sort({ points: -1 })
+        .limit(50)
+        .toArray();
+    return players.map(p => ({
+        username: p.username,
+        points: p.points,
+        rank: getRank(p.points),
+        wins: p.wins,
+        losses: p.losses
+    }));
 }
-
-loadDB();
 
 // ===== Static file server =====
 const MIME_TYPES = {
@@ -58,41 +61,46 @@ const MIME_TYPES = {
     '.ico': 'image/x-icon',
 };
 
-const httpServer = http.createServer((req, res) => {
+const httpServer = http.createServer(async (req, res) => {
     // API routes
     if (req.method === 'POST' && req.url === '/api/register') {
-        return handleBody(req, res, (body) => {
+        return handleBody(req, res, async (body) => {
             const { username, password } = body;
             if (!username || !password || username.length < 2 || password.length < 4) {
                 return jsonRes(res, 400, { error: 'Username (2+ chars) and password (4+ chars) required' });
             }
-            if (players[username]) {
-                return jsonRes(res, 409, { error: 'Username already taken' });
-            }
-            players[username] = { passwordHash: hashPassword(password), points: 0, wins: 0, losses: 0, created: Date.now() };
-            saveDB();
+            if (!playersCol) return jsonRes(res, 500, { error: 'Database not ready' });
+            const existing = await playersCol.findOne({ username });
+            if (existing) return jsonRes(res, 409, { error: 'Username already taken' });
+
+            await playersCol.insertOne({ username, passwordHash: hashPassword(password), points: 0, wins: 0, losses: 0, created: Date.now() });
             jsonRes(res, 200, { success: true, points: 0, rank: 'bronze', wins: 0, losses: 0 });
         });
+        return;
     }
 
     if (req.method === 'POST' && req.url === '/api/login') {
-        return handleBody(req, res, (body) => {
+        return handleBody(req, res, async (body) => {
             const { username, password } = body;
-            const player = players[username];
+            if (!playersCol) return jsonRes(res, 500, { error: 'Database not ready' });
+            const player = await playersCol.findOne({ username });
             if (!player || player.passwordHash !== hashPassword(password)) {
                 return jsonRes(res, 401, { error: 'Invalid username or password' });
             }
             jsonRes(res, 200, { success: true, username, points: player.points, rank: getRank(player.points), wins: player.wins, losses: player.losses });
         });
+        return;
     }
 
     if (req.method === 'GET' && req.url === '/api/leaderboard') {
-        return jsonRes(res, 200, { leaderboard: getLeaderboard() });
+        const leaderboard = await getLeaderboard();
+        return jsonRes(res, 200, { leaderboard });
     }
 
     if (req.method === 'GET' && req.url.startsWith('/api/profile/')) {
         const username = decodeURIComponent(req.url.split('/api/profile/')[1]);
-        const player = players[username];
+        if (!playersCol) return jsonRes(res, 500, { error: 'Database not ready' });
+        const player = await playersCol.findOne({ username });
         if (!player) return jsonRes(res, 404, { error: 'Player not found' });
         return jsonRes(res, 200, { username, points: player.points, rank: getRank(player.points), wins: player.wins, losses: player.losses });
     }
@@ -120,13 +128,15 @@ function jsonRes(res, code, obj) {
     res.end(JSON.stringify(obj));
 }
 
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
     console.log(`\n  ┌─────────────────────────────────────────┐`);
     console.log(`  │           禅数 ZENSU SERVER              │`);
     console.log(`  ├─────────────────────────────────────────┤`);
     console.log(`  │  Game:   http://localhost:${PORT}           │`);
     console.log(`  │  WS:     same port (upgrade)            │`);
-    console.log(`  └─────────────────────────────────────────┘\n`);
+    console.log(`  └─────────────────────────────────────────┘`);
+    await connectDB();
+    console.log('  Server ready.\n');
 });
 
 // ===== WebSocket server =====
@@ -294,45 +304,50 @@ wss.on('connection', (ws) => {
             case 'game_over': {
                 const room = rooms.get(ws.roomCode);
                 if (!room || room.scored) return;
-                room.scored = true; // Prevent double-scoring
+                room.scored = true;
 
                 const winner = data.winner;
                 const greenUser = room.greenUser;
                 const redUser = room.redUser;
 
-                if (greenUser && players[greenUser] && redUser && players[redUser]) {
-                    const oldGreenRank = getRank(players[greenUser].points);
-                    const oldRedRank = getRank(players[redUser].points);
+                if (!playersCol || !greenUser || !redUser) break;
+
+                (async () => {
+                    const gp = await playersCol.findOne({ username: greenUser });
+                    const rp = await playersCol.findOne({ username: redUser });
+                    if (!gp || !rp) return;
+
+                    const oldGreenRank = getRank(gp.points);
+                    const oldRedRank = getRank(rp.points);
 
                     if (winner === 'green') {
-                        players[greenUser].points = Math.max(0, players[greenUser].points + 25);
-                        players[greenUser].wins++;
-                        players[redUser].points = Math.max(0, players[redUser].points - 15);
-                        players[redUser].losses++;
+                        await playersCol.updateOne({ username: greenUser }, { $inc: { points: 25, wins: 1 } });
+                        await playersCol.updateOne({ username: redUser }, { $inc: { wins: 0, losses: 1 }, $set: { points: Math.max(0, rp.points - 15) } });
                     } else if (winner === 'red') {
-                        players[redUser].points = Math.max(0, players[redUser].points + 25);
-                        players[redUser].wins++;
-                        players[greenUser].points = Math.max(0, players[greenUser].points - 15);
-                        players[greenUser].losses++;
+                        await playersCol.updateOne({ username: redUser }, { $inc: { points: 25, wins: 1 } });
+                        await playersCol.updateOne({ username: greenUser }, { $inc: { wins: 0, losses: 1 }, $set: { points: Math.max(0, gp.points - 15) } });
                     }
-                    saveDB();
 
-                    const gp = players[greenUser];
-                    const rp = players[redUser];
-                    const newGreenRank = getRank(gp.points);
-                    const newRedRank = getRank(rp.points);
+                    const gpNew = await playersCol.findOne({ username: greenUser });
+                    const rpNew = await playersCol.findOne({ username: redUser });
+                    const newGreenRank = getRank(gpNew.points);
+                    const newRedRank = getRank(rpNew.points);
 
-                    room.green.send(JSON.stringify({
-                        type: 'stats_update', points: gp.points, rank: newGreenRank,
-                        wins: gp.wins, losses: gp.losses,
-                        rankUp: newGreenRank !== oldGreenRank ? newGreenRank : null
-                    }));
-                    room.red.send(JSON.stringify({
-                        type: 'stats_update', points: rp.points, rank: newRedRank,
-                        wins: rp.wins, losses: rp.losses,
-                        rankUp: newRedRank !== oldRedRank ? newRedRank : null
-                    }));
-                }
+                    if (room.green && room.green.readyState === 1) {
+                        room.green.send(JSON.stringify({
+                            type: 'stats_update', points: gpNew.points, rank: newGreenRank,
+                            wins: gpNew.wins, losses: gpNew.losses,
+                            rankUp: newGreenRank !== oldGreenRank ? newGreenRank : null
+                        }));
+                    }
+                    if (room.red && room.red.readyState === 1) {
+                        room.red.send(JSON.stringify({
+                            type: 'stats_update', points: rpNew.points, rank: newRedRank,
+                            wins: rpNew.wins, losses: rpNew.losses,
+                            rankUp: newRedRank !== oldRedRank ? newRedRank : null
+                        }));
+                    }
+                })();
                 break;
             }
         }
