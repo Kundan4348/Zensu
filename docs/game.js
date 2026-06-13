@@ -553,6 +553,13 @@ function connectOnline(onMessage, onOpen) {
             if (!gameOver) {
                 showWin(onlinePlayerColor, 'Opponent disconnected — 相手退出');
             }
+        } else if (data.type === 'opponent_paused') {
+            const hint = document.getElementById('hint-text');
+            if (hint) hint.textContent = '相手が一時停止 — Opponent paused';
+        } else if (data.type === 'opponent_resumed') {
+            const hint = document.getElementById('hint-text');
+            if (hint) hint.textContent = '相手が戻った — Opponent returned';
+            setTimeout(() => updateHint(), 2000);
         } else if (data.type === 'stats_update') {
             if (currentUser) {
                 const oldRank = currentUser.rank;
@@ -577,6 +584,70 @@ function connectOnline(onMessage, onOpen) {
         document.getElementById('online-status-text').textContent = 'Cannot connect. Is the server running?';
     };
 
+    onlineSocket.onclose = () => {
+        // Don't clear state — allow reconnect
+    };
+}
+
+// Auto-reconnect when app returns from background
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && gameMode === 'online' && onlineRoomCode && !gameOver) {
+        if (!onlineSocket || onlineSocket.readyState !== WebSocket.OPEN) {
+            reconnectOnline();
+        }
+    }
+});
+
+function reconnectOnline() {
+    try {
+        onlineSocket = new WebSocket(WS_URL);
+    } catch (e) { return; }
+
+    onlineSocket.onopen = () => {
+        onlineSocket.send(JSON.stringify({
+            type: 'rejoin',
+            code: onlineRoomCode,
+            color: onlinePlayerColor,
+            username: currentUser ? currentUser.username : null
+        }));
+    };
+
+    onlineSocket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'rejoined') {
+            // Successfully reconnected
+        } else if (data.type === 'rejoin_failed') {
+            showWin(onlinePlayerColor === 'green' ? 'red' : 'green', '接続切断 — Connection lost');
+        } else if (data.type === 'opponent_move') {
+            executeMove(data.move.fromRow, data.move.fromCol, data.move.to, true);
+        } else if (data.type === 'opponent_disconnected') {
+            if (!gameOver) showWin(onlinePlayerColor, 'Opponent disconnected — 相手退出');
+        } else if (data.type === 'opponent_paused') {
+            // Opponent tabbed away — show hint
+            const hint = document.getElementById('hint-text');
+            if (hint) hint.textContent = '相手が一時停止 — Opponent paused';
+        } else if (data.type === 'opponent_resumed') {
+            const hint = document.getElementById('hint-text');
+            if (hint) hint.textContent = '相手が戻った — Opponent returned';
+            setTimeout(() => updateHint(), 2000);
+        } else if (data.type === 'stats_update') {
+            if (currentUser) {
+                const oldRank = currentUser.rank;
+                currentUser.points = data.points;
+                currentUser.rank = data.rank;
+                currentUser.wins = data.wins;
+                currentUser.losses = data.losses;
+                localStorage.setItem('zensu_user', JSON.stringify(currentUser));
+                updateAccountUI();
+                if (data.rankUp || (data.rank !== oldRank && data.points > 0)) {
+                    setTimeout(() => showRankUpModal(data.rank), 2000);
+                }
+            }
+        }
+    };
+
+    onlineSocket.onerror = () => {};
     onlineSocket.onclose = () => {};
 }
 

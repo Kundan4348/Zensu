@@ -206,6 +206,40 @@ wss.on('connection', (ws) => {
                 break;
             }
 
+            case 'rejoin': {
+                const code = (data.code || '').toUpperCase();
+                const color = data.color;
+                const room = rooms.get(code);
+
+                if (!room) {
+                    ws.send(JSON.stringify({ type: 'rejoin_failed' }));
+                    return;
+                }
+
+                // Re-attach player to room
+                if (color === 'green') room.green = ws;
+                else room.red = ws;
+
+                ws.roomCode = code;
+                ws.playerColor = color;
+                ws.username = data.username || null;
+
+                // Clear disconnect timer
+                if (room.disconnectTimer) {
+                    clearTimeout(room.disconnectTimer);
+                    room.disconnectTimer = null;
+                }
+
+                ws.send(JSON.stringify({ type: 'rejoined', code }));
+
+                // Notify opponent
+                const opponent = color === 'green' ? room.red : room.green;
+                if (opponent && opponent.readyState === 1) {
+                    opponent.send(JSON.stringify({ type: 'opponent_resumed' }));
+                }
+                break;
+            }
+
             case 'game_over': {
                 const room = rooms.get(ws.roomCode);
                 if (!room || room.scored) return;
@@ -256,13 +290,27 @@ wss.on('connection', (ws) => {
     ws.on('close', () => {
         if (ws.roomCode) {
             const room = rooms.get(ws.roomCode);
-            if (room) {
-                const opponent = ws.playerColor === 'green' ? room.red : room.green;
-                if (opponent && opponent.readyState === 1) {
-                    opponent.send(JSON.stringify({ type: 'opponent_disconnected' }));
+            if (!room) return;
+
+            // Mark player as disconnected but keep room alive for 30s
+            if (ws.playerColor === 'green') room.green = null;
+            else room.red = null;
+
+            const opponent = ws.playerColor === 'green' ? room.red : room.green;
+            if (opponent && opponent.readyState === 1) {
+                opponent.send(JSON.stringify({ type: 'opponent_paused' }));
+            }
+
+            // Grace period — delete room if player doesn't reconnect in 30s
+            room.disconnectTimer = setTimeout(() => {
+                const currentRoom = rooms.get(ws.roomCode);
+                if (!currentRoom) return;
+                const opp = ws.playerColor === 'green' ? currentRoom.red : currentRoom.green;
+                if (opp && opp.readyState === 1) {
+                    opp.send(JSON.stringify({ type: 'opponent_disconnected' }));
                 }
                 rooms.delete(ws.roomCode);
-            }
+            }, 30000);
         }
     });
 });
