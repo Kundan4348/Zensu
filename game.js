@@ -27,6 +27,7 @@ let winStreak = parseInt(localStorage.getItem('zensu_streak') || '0');
 let onlineSocket = null;
 let onlinePlayerColor = null;
 let onlineRoomCode = null;
+let onlineOpponentName = null;
 
 // ===== AUDIO =====
 let audioCtx = null;
@@ -489,7 +490,7 @@ function startGame(mode, difficulty) {
     if (mode === 'pvp') redBar.classList.add('flipped');
     else redBar.classList.remove('flipped');
 
-
+    updatePlayerNames();
     resetGame();
 }
 
@@ -518,7 +519,7 @@ function createRoom() {
             onlinePlayerColor = 'green';
             statusText.innerHTML = `Room: <strong class="room-code-display">${data.code}</strong> <button class="copy-btn" onclick="copyRoomCode()">📋</button><br><small>Waiting for opponent...</small>`;
         } else if (data.type === 'game_start') {
-            if (data.yourColor) onlinePlayerColor = data.yourColor;
+            if (data.yourColor) onlinePlayerColor = data.yourColor; if (data.opponent) onlineOpponentName = data.opponent;
             startGame('online');
             showCoinTossResult();
         }
@@ -559,7 +560,7 @@ function joinRoom() {
             onlineRoomCode = code;
             statusText.textContent = 'Joined! Waiting for coin toss...';
         } else if (data.type === 'game_start') {
-            if (data.yourColor) onlinePlayerColor = data.yourColor;
+            if (data.yourColor) onlinePlayerColor = data.yourColor; if (data.opponent) onlineOpponentName = data.opponent;
             startGame('online');
             showCoinTossResult();
         } else if (data.type === 'error') {
@@ -705,7 +706,7 @@ function reconnectLobby() {
             if (statusText) statusText.textContent = 'Room expired. Create a new one.';
             onlineRoomCode = null;
         } else if (data.type === 'game_start') {
-            if (data.yourColor) onlinePlayerColor = data.yourColor;
+            if (data.yourColor) onlinePlayerColor = data.yourColor; if (data.opponent) onlineOpponentName = data.opponent;
             startGame('online');
         } else if (data.type === 'opponent_move') {
             executeMove(data.move.fromRow, data.move.fromCol, data.move.to, true);
@@ -771,7 +772,7 @@ function attemptReconnect() {
         } else if (data.type === 'game_start') {
             reconnectAttempts = 0;
             hideReconnectingUI();
-            if (data.yourColor) onlinePlayerColor = data.yourColor;
+            if (data.yourColor) onlinePlayerColor = data.yourColor; if (data.opponent) onlineOpponentName = data.opponent;
             if (gameMode !== 'online') startGame('online');
 
         } else if (data.type === 'rejoin_failed') {
@@ -1466,6 +1467,34 @@ function resetGame() {
 
 function toggleRules() {
     document.getElementById('rules-panel').classList.toggle('hidden');
+}
+
+function truncateName(name, max) {
+    if (!name) return '';
+    return name.length > max ? name.slice(0, max) + '…' : name;
+}
+
+function updatePlayerNames() {
+    const greenEl = document.getElementById('green-player-name');
+    const redEl = document.getElementById('red-player-name');
+
+    if (gameMode === 'online') {
+        const myName = getDisplayName();
+        if (onlinePlayerColor === 'green') {
+            greenEl.textContent = truncateName(myName, 8);
+            redEl.textContent = truncateName(onlineOpponentName || '相手', 8);
+        } else {
+            redEl.textContent = truncateName(myName, 8);
+            greenEl.textContent = truncateName(onlineOpponentName || '相手', 8);
+        }
+    } else if (gameMode === 'cpu') {
+        const myName = currentUser ? currentUser.username : 'You';
+        greenEl.textContent = truncateName(myName, 8);
+        redEl.textContent = 'CPU';
+    } else {
+        greenEl.textContent = '先手';
+        redEl.textContent = '後手';
+    }
 }
 
 // ===== THEMES =====

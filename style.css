@@ -1309,6 +1309,10 @@ header h1 {
     font-size: 0.75rem;
     font-weight: 700;
     color: rgba(255, 255, 255, 0.9);
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .player-english {
@@ -1697,6 +1701,12 @@ header h1 {
 /* Red: back number (bottom, facing opponent) is large */
 .piece.red .arrow-top { font-size: 0.45rem; opacity: 0.5; }
 .piece.red .arrow-bottom { font-size: 0.85rem; opacity: 1; }
+
+/* Flipped board: top is always the forward (big) number for both */
+.piece.green.piece-flipped .arrow-top { font-size: 0.45rem; opacity: 0.5; }
+.piece.green.piece-flipped .arrow-bottom { font-size: 0.85rem; opacity: 1; }
+.piece.red.piece-flipped .arrow-top { font-size: 0.85rem; opacity: 1; }
+.piece.red.piece-flipped .arrow-bottom { font-size: 0.45rem; opacity: 0.5; }
 
 .piece-type {
     grid-area: center;
