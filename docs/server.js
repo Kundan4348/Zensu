@@ -193,6 +193,11 @@ wss.on('connection', (ws) => {
             case 'move': {
                 const room = rooms.get(ws.roomCode);
                 if (!room) return;
+
+                // Save move history on server for state sync on reconnect
+                if (!room.moves) room.moves = [];
+                room.moves.push(data.move);
+
                 const opponent = ws.playerColor === 'green' ? room.red : room.green;
                 if (opponent && opponent.readyState === 1) {
                     opponent.send(JSON.stringify({ type: 'opponent_move', move: data.move }));
@@ -202,13 +207,14 @@ wss.on('connection', (ws) => {
 
             case 'rematch': {
                 const room = rooms.get(ws.roomCode);
-                if (room) room.scored = false;
+                if (room) { room.scored = false; room.moves = []; }
                 break;
             }
 
             case 'rejoin': {
                 const code = (data.code || '').toUpperCase();
                 const color = data.color;
+                const lastMoveIndex = data.lastMoveIndex || 0;
                 const room = rooms.get(code);
 
                 if (!room) {
@@ -230,7 +236,11 @@ wss.on('connection', (ws) => {
                     room.disconnectTimer = null;
                 }
 
-                ws.send(JSON.stringify({ type: 'rejoined', code }));
+                // Send missed moves since the player disconnected
+                const allMoves = room.moves || [];
+                const missedMoves = allMoves.slice(lastMoveIndex);
+
+                ws.send(JSON.stringify({ type: 'rejoined', code, missedMoves, totalMoves: allMoves.length }));
 
                 // Notify opponent
                 const opponent = color === 'green' ? room.red : room.green;
