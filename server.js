@@ -301,7 +301,7 @@ wss.on('connection', (ws) => {
                 opponent.send(JSON.stringify({ type: 'opponent_paused' }));
             }
 
-            // Grace period — delete room if player doesn't reconnect in 30s
+            // Grace period — delete room if player doesn't reconnect in 2min
             room.disconnectTimer = setTimeout(() => {
                 const currentRoom = rooms.get(ws.roomCode);
                 if (!currentRoom) return;
@@ -310,7 +310,7 @@ wss.on('connection', (ws) => {
                     opp.send(JSON.stringify({ type: 'opponent_disconnected' }));
                 }
                 rooms.delete(ws.roomCode);
-            }, 30000);
+            }, 120000);
         }
     });
 });
