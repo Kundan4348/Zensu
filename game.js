@@ -1018,13 +1018,19 @@ function createPieceElement(piece, row, col) {
     }
 
     const moves = getMoveDistances(piece);
+    const flipped = isBoardFlipped();
+    const top = flipped ? moves.down : moves.up;
+    const bottom = flipped ? moves.up : moves.down;
+    const left = flipped ? moves.right : moves.left;
+    const right = flipped ? moves.left : moves.right;
+
     el.innerHTML = `
         <div class="piece-arrows">
-            <span class="arrow arrow-top">${moves.up}</span>
-            <span class="arrow arrow-left">${moves.left}</span>
+            <span class="arrow arrow-top">${top}</span>
+            <span class="arrow arrow-left">${left}</span>
             <span class="piece-type">${piece.type === 1 ? 'I' : 'II'}</span>
-            <span class="arrow arrow-right">${moves.right}</span>
-            <span class="arrow arrow-bottom">${moves.down}</span>
+            <span class="arrow arrow-right">${right}</span>
+            <span class="arrow arrow-bottom">${bottom}</span>
         </div>
     `;
     return el;
