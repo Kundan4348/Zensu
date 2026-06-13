@@ -1346,12 +1346,6 @@ header h1 {
         inset 0 1px 0 rgba(255, 255, 255, 0.12),
         inset 0 -2px 0 rgba(0, 0, 0, 0.2);
     overflow: hidden;
-    transform: perspective(800px) rotateX(2deg);
-    transition: transform 0.4s ease;
-}
-
-#board-container:active {
-    transform: perspective(800px) rotateX(0deg);
 }
 
 .board-glass-layer {
@@ -1502,81 +1496,81 @@ header h1 {
     will-change: transform;
 }
 
-/* Wood grain texture overlay */
+/* Wood grain + lighting overlay */
 .piece::before {
     content: '';
     position: absolute;
     inset: 0;
     background:
-        linear-gradient(175deg, rgba(255,255,255,0.15) 0%, transparent 30%, rgba(0,0,0,0.05) 70%),
+        linear-gradient(160deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 20%, transparent 45%, rgba(0,0,0,0.1) 80%, rgba(0,0,0,0.15) 100%),
         repeating-linear-gradient(
-            95deg,
+            92deg,
             transparent,
-            transparent 3px,
-            rgba(0,0,0,0.03) 3px,
-            rgba(0,0,0,0.03) 4px
+            transparent 2.5px,
+            rgba(0,0,0,0.04) 2.5px,
+            rgba(0,0,0,0.04) 3.5px
         );
     clip-path: inherit;
     pointer-events: none;
     z-index: 1;
 }
 
-/* Drop shadow (separate element since clip-path clips box-shadow) */
+/* Ground shadow */
 .piece::after {
     content: '';
     position: absolute;
-    bottom: -3px;
-    left: 12%;
-    right: 12%;
-    height: 6px;
+    bottom: -4px;
+    left: 15%;
+    right: 15%;
+    height: 7px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.35);
-    filter: blur(3px);
+    background: rgba(0, 0, 0, 0.45);
+    filter: blur(4px);
     z-index: -1;
     transition: all 0.2s ease;
 }
 
 .piece:hover {
-    transform: translateY(-3px) scale(1.04);
+    transform: translateY(-2px) scale(1.03);
 }
 .piece:hover::after {
     bottom: -6px;
     filter: blur(5px);
-    opacity: 0.7;
+    opacity: 0.8;
 }
 
-/* Green player — polished bamboo/jade */
+/* Green player — polished jade stone */
 .piece.green {
-    background: linear-gradient(170deg, #5ea87a, #3a7d55, #256842);
+    background: linear-gradient(165deg, #7acc96 0%, #4a9a68 30%, #2e7a4e 60%, #1d5a38 100%);
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.18),
-        inset 0 -2px 4px rgba(0,0,0,0.25),
-        inset 2px 0 4px rgba(0,0,0,0.08),
-        inset -2px 0 4px rgba(0,0,0,0.08);
+        inset 0 2px 1px rgba(255, 255, 255, 0.2),
+        inset 0 -3px 5px rgba(0, 0, 0, 0.3),
+        inset 3px 0 5px rgba(0, 0, 0, 0.1),
+        inset -3px 0 5px rgba(0, 0, 0, 0.1);
 }
 
 .piece.green.piece-selected {
-    transform: translateY(-5px) scale(1.1);
-    background: linear-gradient(170deg, #72c892, #4a9a68, #358a52);
+    transform: translateY(-3px) scale(1.06);
+    background: linear-gradient(165deg, #8de0a8 0%, #5cb87a 30%, #3a9a5e 60%, #2a7a48 100%);
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.25),
-        inset 0 -2px 4px rgba(0,0,0,0.15),
-        0 10px 25px rgba(111, 207, 151, 0.3),
-        0 0 20px var(--green-glow);
+        inset 0 2px 1px rgba(255, 255, 255, 0.3),
+        inset 0 -3px 5px rgba(0, 0, 0, 0.2),
+        0 8px 20px rgba(111, 207, 151, 0.3),
+        0 0 15px var(--green-glow);
 }
 .piece.green.piece-selected::after {
-    bottom: -8px;
-    filter: blur(6px);
+    bottom: -7px;
+    filter: blur(5px);
 }
 
-/* Red player — warm lacquered rosewood */
+/* Red player — lacquered rosewood */
 .piece.red {
-    background: linear-gradient(170deg, #c55568, #943048, #6e1830);
+    background: linear-gradient(165deg, #d86878 0%, #b84058 30%, #8a2840 60%, #5c1828 100%);
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.18),
-        inset 0 -2px 4px rgba(0,0,0,0.25),
-        inset 2px 0 4px rgba(0,0,0,0.08),
-        inset -2px 0 4px rgba(0,0,0,0.08);
+        inset 0 2px 1px rgba(255, 255, 255, 0.2),
+        inset 0 -3px 5px rgba(0, 0, 0, 0.3),
+        inset 3px 0 5px rgba(0, 0, 0, 0.1),
+        inset -3px 0 5px rgba(0, 0, 0, 0.1);
 }
 
 /* Red pieces point downward */
@@ -1588,16 +1582,16 @@ header h1 {
 }
 
 .piece.red.piece-selected {
-    transform: translateY(-5px) scale(1.1);
-    background: linear-gradient(170deg, #e06878, #b84058, #9a3048);
+    transform: translateY(-3px) scale(1.06);
+    background: linear-gradient(165deg, #f07888 0%, #d05068 30%, #a83850 60%, #7a2838 100%);
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.25),
-        inset 0 -2px 4px rgba(0,0,0,0.15),
-        0 10px 25px rgba(232, 96, 122, 0.3),
-        0 0 20px var(--red-glow);
+        inset 0 2px 1px rgba(255, 255, 255, 0.3),
+        inset 0 -3px 5px rgba(0, 0, 0, 0.2),
+        0 8px 20px rgba(232, 96, 122, 0.3),
+        0 0 15px var(--red-glow);
 }
 .piece.red.piece-selected::after {
-    bottom: -8px;
+    bottom: -7px;
     filter: blur(6px);
 }
 
