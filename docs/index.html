@@ -335,12 +335,6 @@
 
         <!-- Game Screen -->
         <div id="game-screen" class="hidden">
-            <header>
-                <h1>禅数</h1>
-                <p class="subtitle">Z E N S U</p>
-            </header>
-            <span id="streak-badge" class="streak-badge hidden"></span>
-
             <!-- Red player info (flipped for opponent sitting across) -->
             <div id="red-bar">
                 <div class="player-panel red-panel" id="red-panel">
@@ -387,8 +381,10 @@
                         <button id="undo-btn" onclick="undoMove()">↩ Undo</button>
                     </div>
                 </div>
-                <p id="hint-text"></p>
             </div>
+
+            <p id="hint-text" style="display:none"></p>
+            <span id="streak-badge" class="streak-badge hidden"></span>
 
             <div id="controls">
                 <button id="menu-btn" onclick="showLeaveModal()">
@@ -399,13 +395,12 @@
                     <span>新局</span>
                     <small>New Game</small>
                 </button>
-                <button id="rules-btn" onclick="toggleRules()">
-                    <span>規則</span>
-                    <small>Rules</small>
+                <button id="emote-toggle" class="hidden" onclick="toggleEmoteBar()">
+                    <span>😊</span>
                 </button>
             </div>
 
-            <!-- Emote bar (online games only) -->
+            <!-- Emote bar (toggled on tap) -->
             <div id="emote-bar" class="hidden">
                 <button class="emote-btn" onclick="sendEmote('👏')">👏</button>
                 <button class="emote-btn" onclick="sendEmote('🔥')">🔥</button>

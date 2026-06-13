@@ -490,10 +490,11 @@ function startGame(mode, difficulty) {
     if (mode === 'pvp') redBar.classList.add('flipped');
     else redBar.classList.remove('flipped');
 
-    // Show emote bar in online mode
-    const emoteBar = document.getElementById('emote-bar');
-    if (mode === 'online') emoteBar.classList.remove('hidden');
-    else emoteBar.classList.add('hidden');
+    // Show emote toggle in online mode
+    const emoteToggle = document.getElementById('emote-toggle');
+    if (mode === 'online') emoteToggle.classList.remove('hidden');
+    else emoteToggle.classList.add('hidden');
+    document.getElementById('emote-bar').classList.add('hidden');
 
     updatePlayerNames();
     resetGame();
@@ -861,6 +862,10 @@ function disconnectOnline() {
 }
 
 // ===== EMOTES =====
+function toggleEmoteBar() {
+    document.getElementById('emote-bar').classList.toggle('hidden');
+}
+
 function sendEmote(emoji) {
     if (gameMode !== 'online' || !onlineSocket || onlineSocket.readyState !== WebSocket.OPEN) return;
     onlineSocket.send(JSON.stringify({ type: 'emote', emoji }));
