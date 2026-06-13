@@ -2018,6 +2018,33 @@ header h1 {
     letter-spacing: 0.5px;
 }
 
+/* Board flip for red player in online mode */
+#board.board-flipped {
+    transform: rotate(180deg);
+}
+
+#board.board-flipped .piece {
+    transform: rotate(-180deg);
+}
+
+#board.board-flipped .piece:hover {
+    transform: rotate(-180deg) translateY(-2px) scale(1.03);
+}
+
+#board.board-flipped .piece.piece-selected {
+    transform: rotate(-180deg) translateY(-3px) scale(1.06);
+}
+
+#board.board-flipped .piece-sliding {
+    animation: pieceSlideFlipped 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pieceSlideFlipped {
+    0% { opacity: 0.6; transform: rotate(-180deg) scale(0.85); }
+    50% { opacity: 0.9; transform: rotate(-180deg) scale(1.05); }
+    100% { opacity: 1; transform: rotate(-180deg) scale(1); }
+}
+
 /* ===== BOARD THEMES ===== */
 /* Night Ink */
 body.board-night .cell-light { background: rgba(60, 60, 100, 0.6) !important; }

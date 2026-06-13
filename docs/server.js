@@ -178,20 +178,40 @@ wss.on('connection', (ws) => {
                 if (!room) { ws.send(JSON.stringify({ type: 'error', message: 'Room not found' })); return; }
                 if (room.red) { ws.send(JSON.stringify({ type: 'error', message: 'Room is full' })); return; }
 
-                room.red = ws;
-                room.redUser = ws.username;
-                ws.roomCode = code;
-                ws.playerColor = 'red';
+                // Coin toss — randomly assign colors
+                const creatorGetsGreen = Math.random() < 0.5;
+                const creatorWs = room.green; // originally stored as green
+                const creatorUser = room.greenUser;
+                const joinerWs = ws;
+                const joinerUser = ws.username;
 
-                // Mark that game has started (green will get game_start on reconnect)
+                if (creatorGetsGreen) {
+                    room.green = creatorWs;
+                    room.greenUser = creatorUser;
+                    room.red = joinerWs;
+                    room.redUser = joinerUser;
+                    if (creatorWs) creatorWs.playerColor = 'green';
+                    joinerWs.playerColor = 'red';
+                } else {
+                    room.green = joinerWs;
+                    room.greenUser = joinerUser;
+                    room.red = creatorWs;
+                    room.redUser = creatorUser;
+                    if (creatorWs) creatorWs.playerColor = 'red';
+                    joinerWs.playerColor = 'green';
+                }
+
+                joinerWs.roomCode = code;
                 room.started = true;
 
                 ws.send(JSON.stringify({ type: 'joined', code }));
                 if (room.green && room.green.readyState === 1) {
-                    room.green.send(JSON.stringify({ type: 'game_start', opponent: ws.username }));
+                    room.green.send(JSON.stringify({ type: 'game_start', opponent: room.redUser, yourColor: 'green' }));
                 }
-                room.red.send(JSON.stringify({ type: 'game_start', opponent: room.greenUser }));
-                console.log(`Room ${code}: ${ws.username || 'anon'} joined`);
+                if (room.red && room.red.readyState === 1) {
+                    room.red.send(JSON.stringify({ type: 'game_start', opponent: room.greenUser, yourColor: 'red' }));
+                }
+                console.log(`Room ${code}: ${joinerUser || 'anon'} joined. Coin toss: creator=${creatorGetsGreen ? 'green' : 'red'}`);
                 break;
             }
 

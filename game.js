@@ -467,6 +467,14 @@ function startGame(mode, difficulty) {
     if (mode === 'pvp') redBar.classList.add('flipped');
     else redBar.classList.remove('flipped');
 
+    // Flip board for red player in online mode
+    const boardEl = document.getElementById('board');
+    if (mode === 'online' && onlinePlayerColor === 'red') {
+        boardEl.classList.add('board-flipped');
+    } else {
+        boardEl.classList.remove('board-flipped');
+    }
+
     resetGame();
 }
 
@@ -495,6 +503,7 @@ function createRoom() {
             onlinePlayerColor = 'green';
             statusText.innerHTML = `Room: <strong class="room-code-display">${data.code}</strong> <button class="copy-btn" onclick="copyRoomCode()">📋</button><br><small>Waiting for opponent...</small>`;
         } else if (data.type === 'game_start') {
+            if (data.yourColor) onlinePlayerColor = data.yourColor;
             startGame('online');
         }
     }, () => {
@@ -532,10 +541,9 @@ function joinRoom() {
     connectOnline((data) => {
         if (data.type === 'joined') {
             onlineRoomCode = code;
-            onlinePlayerColor = 'red';
-            statusText.textContent = 'Joined! Starting game...';
-            setTimeout(() => startGame('online'), 500);
+            statusText.textContent = 'Joined! Waiting for coin toss...';
         } else if (data.type === 'game_start') {
+            if (data.yourColor) onlinePlayerColor = data.yourColor;
             startGame('online');
         } else if (data.type === 'error') {
             statusText.textContent = data.message || 'Failed to join room';
@@ -681,6 +689,7 @@ function reconnectLobby() {
             if (statusText) statusText.textContent = 'Room expired. Create a new one.';
             onlineRoomCode = null;
         } else if (data.type === 'game_start') {
+            if (data.yourColor) onlinePlayerColor = data.yourColor;
             startGame('online');
         } else if (data.type === 'opponent_move') {
             executeMove(data.move.fromRow, data.move.fromCol, data.move.to, true);
@@ -746,6 +755,7 @@ function attemptReconnect() {
         } else if (data.type === 'game_start') {
             reconnectAttempts = 0;
             hideReconnectingUI();
+            if (data.yourColor) onlinePlayerColor = data.yourColor;
             if (gameMode !== 'online') startGame('online');
 
         } else if (data.type === 'rejoin_failed') {
